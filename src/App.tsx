@@ -15,6 +15,10 @@ export default function App() {
   const [image, setImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<MoodAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -23,6 +27,10 @@ export default function App() {
   const enrichmentRunRef = useRef(0);
 
   const stopCameraStream = useCallback(() => {
+    setIsCameraStarting(false);
+    setIsCameraReady(false);
+    setCameraStream(null);
+
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((track) => track.stop());
       cameraStreamRef.current = null;
@@ -33,18 +41,49 @@ export default function App() {
     }
   }, []);
 
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    setVideoElement(node);
+  }, []);
+
   useEffect(() => {
-    if (stage !== 'camera' || !videoRef.current || !cameraStreamRef.current) {
+    if (stage !== 'camera' || !videoElement || !cameraStream) {
       return;
     }
 
-    const videoElement = videoRef.current;
-    videoElement.srcObject = cameraStreamRef.current;
     videoElement.muted = true;
+    videoElement.playsInline = true;
+
+    let readinessInterval: number | null = null;
+    let readinessTimeout: number | null = null;
+    let frameRequestId: number | null = null;
+
+    const markCameraReady = () => {
+      const activeTrack = cameraStream.getVideoTracks()[0];
+      const hasLiveTrack = Boolean(activeTrack && activeTrack.readyState === 'live');
+      const hasFrame =
+        videoElement.videoWidth > 0 &&
+        videoElement.videoHeight > 0 &&
+        videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      const hasUsableMetadata =
+        videoElement.readyState >= HTMLMediaElement.HAVE_METADATA &&
+        hasLiveTrack;
+      const hasAttachedStream = Boolean(videoElement.srcObject);
+
+      if (
+        hasFrame ||
+        hasUsableMetadata ||
+        (hasLiveTrack && hasAttachedStream)
+      ) {
+        setIsCameraStarting(false);
+        setIsCameraReady(true);
+      }
+    };
 
     const startPreview = async () => {
       try {
         await videoElement.play();
+        markCameraReady();
       } catch (previewError) {
         console.error('Camera preview could not start.', previewError);
         setError('Camera preview could not start. Please retry camera access.');
@@ -53,18 +92,51 @@ export default function App() {
       }
     };
 
-    if (videoElement.readyState >= 1) {
-      void startPreview();
-    } else {
-      videoElement.onloadedmetadata = () => {
-        void startPreview();
-      };
+    const handleReadinessSignal = () => {
+      markCameraReady();
+    };
+
+    videoElement.addEventListener('loadedmetadata', handleReadinessSignal);
+    videoElement.addEventListener('loadeddata', handleReadinessSignal);
+    videoElement.addEventListener('canplay', handleReadinessSignal);
+    videoElement.addEventListener('playing', handleReadinessSignal);
+
+    videoElement.srcObject = cameraStream;
+    void startPreview();
+
+    if ('requestVideoFrameCallback' in videoElement) {
+      frameRequestId = videoElement.requestVideoFrameCallback(() => {
+        markCameraReady();
+      });
     }
 
+    readinessInterval = window.setInterval(() => {
+      markCameraReady();
+    }, 200);
+
+    readinessTimeout = window.setTimeout(() => {
+      markCameraReady();
+    }, 1200);
+
     return () => {
-      videoElement.onloadedmetadata = null;
+      videoElement.removeEventListener('loadedmetadata', handleReadinessSignal);
+      videoElement.removeEventListener('loadeddata', handleReadinessSignal);
+      videoElement.removeEventListener('canplay', handleReadinessSignal);
+      videoElement.removeEventListener('playing', handleReadinessSignal);
+
+      if (readinessInterval !== null) {
+        window.clearInterval(readinessInterval);
+      }
+
+      if (readinessTimeout !== null) {
+        window.clearTimeout(readinessTimeout);
+      }
+
+      if (frameRequestId !== null && 'cancelVideoFrameCallback' in videoElement) {
+        videoElement.cancelVideoFrameCallback(frameRequestId);
+      }
     };
-  }, [stage, stopCameraStream]);
+  }, [stage, videoElement, cameraStream, stopCameraStream]);
 
   useEffect(() => {
     return () => {
@@ -73,18 +145,40 @@ export default function App() {
   }, [stopCameraStream]);
 
   const startCamera = async () => {
+    const preferredConstraints: MediaStreamConstraints = {
+      video: {
+        facingMode: 'user',
+        width: { ideal: 960 },
+        height: { ideal: 1280 },
+        aspectRatio: { ideal: 3 / 4 },
+      },
+      audio: false,
+    };
+
     try {
       setError(null);
       stopCameraStream();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      });
+      setIsCameraStarting(true);
+      setIsCameraReady(false);
+      const stream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
       cameraStreamRef.current = stream;
+      setCameraStream(stream);
       setStage('camera');
     } catch (cameraError) {
-      console.error('Camera access failed.', cameraError);
-      setError('Permitted camera access is required to capture your mood.');
+      try {
+        setIsCameraStarting(true);
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        cameraStreamRef.current = fallbackStream;
+        setCameraStream(fallbackStream);
+        setStage('camera');
+      } catch (fallbackError) {
+        console.error('Camera access failed.', fallbackError);
+        setIsCameraStarting(false);
+        setError('Camera access is required and the camera could not be connected. Please check browser permission and try again.');
+      }
     }
   };
 
@@ -123,20 +217,76 @@ export default function App() {
       return;
     }
 
-    if (videoRef.current.readyState < 2) {
-      setError('Camera preview is not ready yet. Please wait a moment and try again.');
-      return;
-    }
-
     const context = canvasRef.current.getContext('2d');
     if (!context) {
       setError('Could not access the camera frame. Please try again.');
       return;
     }
 
-    canvasRef.current.width = videoRef.current.videoWidth;
-    canvasRef.current.height = videoRef.current.videoHeight;
-    context.drawImage(videoRef.current, 0, 0);
+    const drawCroppedFrame = (
+      source: CanvasImageSource,
+      sourceWidth: number,
+      sourceHeight: number,
+    ) => {
+      const targetRatio = 3 / 4;
+      const sourceRatio = sourceWidth / sourceHeight;
+
+      let cropWidth = sourceWidth;
+      let cropHeight = sourceHeight;
+      let sourceX = 0;
+      let sourceY = 0;
+
+      if (sourceRatio > targetRatio) {
+        cropWidth = sourceHeight * targetRatio;
+        sourceX = (sourceWidth - cropWidth) / 2;
+      } else {
+        cropHeight = sourceWidth / targetRatio;
+        sourceY = (sourceHeight - cropHeight) / 2;
+      }
+
+      canvasRef.current.width = 960;
+      canvasRef.current.height = 1280;
+      context.save();
+      context.translate(canvasRef.current.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(
+        source,
+        sourceX,
+        sourceY,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height,
+      );
+      context.restore();
+    };
+
+    const sourceWidth = videoRef.current.videoWidth;
+    const sourceHeight = videoRef.current.videoHeight;
+
+    if (sourceWidth > 0 && sourceHeight > 0 && videoRef.current.readyState >= 2) {
+      drawCroppedFrame(videoRef.current, sourceWidth, sourceHeight);
+    } else {
+      const track = cameraStreamRef.current?.getVideoTracks()[0];
+      const ImageCaptureCtor = (window as Window & { ImageCapture?: new (track: MediaStreamTrack) => { grabFrame: () => Promise<ImageBitmap> } }).ImageCapture;
+
+      if (!track || !ImageCaptureCtor) {
+        setError('Camera preview is not ready yet. Please wait a moment and try again.');
+        return;
+      }
+
+      try {
+        const imageCapture = new ImageCaptureCtor(track);
+        const frame = await imageCapture.grabFrame();
+        drawCroppedFrame(frame, frame.width, frame.height);
+      } catch (captureError) {
+        console.error('ImageCapture fallback failed.', captureError);
+        setError('Camera frame could not be captured yet. Please wait a moment and try again.');
+        return;
+      }
+    }
 
     const dataUrl = canvasRef.current.toDataURL('image/jpeg');
     stopCameraStream();
@@ -277,17 +427,24 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 p-8 md:p-16 flex items-center justify-center"
             >
-              <div className="w-full max-w-4xl aspect-video rounded-[2.5rem] overflow-hidden relative border border-[#1A1A1A]/10 bg-black/5 shadow-2xl">
+              <div className="w-full max-w-md md:max-w-lg aspect-[3/4] rounded-[2.5rem] overflow-hidden relative border border-[#1A1A1A]/10 bg-black/5 shadow-2xl">
                 <video
-                  ref={videoRef}
+                  ref={setVideoRef}
                   autoPlay
                   playsInline
                   muted
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
                 <div className="absolute top-6 left-6 glass px-4 py-2 rounded-full text-[9px] font-bold uppercase tracking-[0.3em]">
-                  Live Camera Preview
+                  {isCameraReady ? 'Live Camera Preview' : 'Connecting Camera'}
                 </div>
+                {!isCameraReady && (
+                  <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] flex items-center justify-center">
+                    <div className="glass px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.3em]">
+                      {isCameraStarting ? 'Waiting For Camera' : 'Preparing Preview'}
+                    </div>
+                  </div>
+                )}
                 <div className="absolute inset-x-0 bottom-12 flex justify-center items-center">
                   <button
                     onClick={capturePhoto}
