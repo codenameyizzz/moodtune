@@ -1066,10 +1066,10 @@ export default function App() {
         <motion.nav
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex justify-between items-center px-6 md:px-12 py-8 border-b border-[#1A1A1A]/10 w-full"
+          className="flex justify-between items-center px-4 md:px-12 py-6 md:py-8 border-b border-[#1A1A1A]/10 w-full gap-3"
         >
           <div className="flex items-center gap-2 cursor-pointer" onClick={reset}>
-            <span className="font-serif text-3xl font-bold tracking-tighter">MoodTune</span>
+            <span className="font-serif text-2xl md:text-3xl font-bold tracking-tighter">MoodTune</span>
           </div>
           <div className="hidden md:flex gap-10 text-[10px] uppercase tracking-[0.3em] font-semibold opacity-60">
             <button onClick={reset} className="hover:opacity-100 transition-opacity">Capture</button>
@@ -1095,9 +1095,9 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col md:flex-row"
             >
-              <section className="md:w-[45%] p-8 md:p-16 flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#1A1A1A]/10">
+              <section className="md:w-[45%] p-6 md:p-16 flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#1A1A1A]/10">
                 <div className="space-y-8">
-                  <h1 className="font-serif text-6xl md:text-8xl leading-[0.9] tracking-tighter">
+                  <h1 className="font-serif text-5xl md:text-8xl leading-[0.9] tracking-tighter">
                     Capture
                     <br />
                     <span className="italic font-normal">the vibe.</span>
@@ -1118,7 +1118,7 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="flex-1 p-8 md:p-16 flex flex-col items-center justify-center bg-white">
+              <section className="flex-1 p-6 md:p-16 flex flex-col items-center justify-center bg-white">
                 <div
                   className="w-full max-w-md aspect-[4/3] md:aspect-square border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-black transition-all duration-500 hover:bg-[#FAF9F6]"
                   onClick={() => {
@@ -1134,17 +1134,17 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="mt-12 flex flex-col items-center gap-6 w-full max-w-md">
+                <div className="mt-10 md:mt-12 flex flex-col items-center gap-6 w-full max-w-md">
                   <div className="w-full flex items-center gap-4">
                     <div className="h-px flex-1 bg-gray-100" />
                     <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-bold">Options</span>
                     <div className="h-px flex-1 bg-gray-100" />
                   </div>
 
-                  <div className="flex gap-4 w-full">
+                  <div className="flex gap-3 md:gap-4 w-full">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex-1 h-14 rounded-full border border-gray-200 hover:border-black font-bold text-[10px] uppercase tracking-widest transition-all"
+                      className="flex-1 h-13 md:h-14 rounded-full border border-gray-200 hover:border-black font-bold text-[9px] md:text-[10px] uppercase tracking-[0.22em] md:tracking-widest transition-all"
                     >
                       Upload Archive
                     </button>
@@ -1159,15 +1159,15 @@ export default function App() {
                 </div>
 
                 {historyEntries.length > 0 && (
-                  <div className="mt-12 w-full max-w-md">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="mt-10 md:mt-12 w-full max-w-md">
+                    <div className="flex items-center justify-between gap-3 mb-4">
                       <div className="flex items-center gap-2">
                         <History className="w-4 h-4 text-black/60" />
                         <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-gray-400">History</span>
                       </div>
-                      <span className="text-[10px] text-gray-400 italic font-serif">Saved locally</span>
+                      <span className="text-[9px] md:text-[10px] text-gray-400 italic font-serif">Saved locally</span>
                     </div>
-                    <div className="space-y-3 max-h-72 overflow-y-auto panel-scrollbar pr-1">
+                    <div className="space-y-3 max-h-64 md:max-h-72 overflow-y-auto panel-scrollbar pr-1">
                       {historyEntries.map((entry) => (
                         <button
                           key={entry.id}
@@ -1203,11 +1203,11 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 p-8 md:p-16 flex items-center justify-center"
+              className="flex-1 p-4 md:p-16 flex items-center justify-center"
             >
               <div className={`w-full max-w-md md:max-w-3xl ${
                 selectedAspectRatio === '3:4' ? 'aspect-[3/4] md:aspect-[3/4] md:max-w-lg' : 'aspect-[16/9]'
-              } rounded-[2.5rem] overflow-hidden relative border border-[#1A1A1A]/10 bg-black/5 shadow-2xl`}>
+              } rounded-[1.9rem] md:rounded-[2.5rem] overflow-hidden relative border border-[#1A1A1A]/10 bg-black/5 shadow-2xl`}>
                 <video
                   ref={setVideoRef}
                   autoPlay
@@ -1215,10 +1215,7 @@ export default function App() {
                   muted
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
-                <div className="absolute top-6 left-6 glass px-4 py-2 rounded-full text-[9px] font-bold uppercase tracking-[0.3em]">
-                  {isCameraReady ? 'Live Camera Preview' : 'Connecting Camera'}
-                </div>
-                <div className="absolute top-6 right-6 flex flex-wrap justify-end gap-2 max-w-[72%]">
+                <div className="absolute top-4 right-4 md:top-6 md:right-6 flex flex-wrap justify-end gap-2 max-w-[50%] md:max-w-[72%]">
                   {(['3:4', '16:9'] as AspectRatioOption[]).map((ratio) => (
                     <button
                       key={ratio}
@@ -1226,7 +1223,7 @@ export default function App() {
                       onClick={() => {
                         void startCamera(ratio);
                       }}
-                      className={`glass rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] ${
+                      className={`glass rounded-full px-2.5 md:px-3 py-2 text-[8px] md:text-[9px] font-bold uppercase tracking-[0.16em] md:tracking-[0.2em] ${
                         selectedAspectRatio === ratio ? 'text-black' : 'text-black/45'
                       }`}
                     >
@@ -1234,25 +1231,27 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <div className="absolute left-6 right-6 bottom-36 flex flex-wrap justify-center gap-2">
-                  {([
-                    ['none', 'Clean'],
-                    ['hearts', 'Hearts'],
-                    ['sparkles', 'Sparkles'],
-                    ['blush', 'Blush'],
-                    ['pixel', 'Pixel Pop'],
-                  ] as [EditorSticker, string][]).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setEditorSticker(value)}
-                      className={`glass rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.18em] ${
-                        editorSticker === value ? 'text-black border-black/15' : 'text-black/45'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <div className="absolute left-3 right-3 md:left-6 md:right-6 bottom-3 md:bottom-6">
+                  <div className="mx-auto flex w-full md:w-auto gap-1.5 md:gap-2 overflow-x-auto no-scrollbar pb-1 justify-start md:justify-center">
+                    {([
+                      ['none', 'Clean'],
+                      ['hearts', 'Hearts'],
+                      ['sparkles', 'Sparkles'],
+                      ['blush', 'Blush'],
+                      ['pixel', 'Pixel Pop'],
+                    ] as [EditorSticker, string][]).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setEditorSticker(value)}
+                        className={`glass whitespace-nowrap rounded-full px-2.5 md:px-3 py-1.5 md:py-2 text-[7px] md:text-[9px] font-bold uppercase tracking-[0.12em] md:tracking-[0.18em] ${
+                          editorSticker === value ? 'text-black border-black/15' : 'text-black/45'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <StickerPreviewOverlay
                   sticker={editorSticker}
@@ -1261,16 +1260,16 @@ export default function App() {
                 />
                 {!isCameraReady && (
                   <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] flex items-center justify-center">
-                    <div className="glass px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.3em]">
+                    <div className="glass px-4 md:px-5 py-3 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-[0.22em] md:tracking-[0.3em]">
                       {isCameraStarting ? 'Waiting For Camera' : 'Preparing Preview'}
                     </div>
                   </div>
                 )}
-                <div className="absolute inset-x-0 bottom-12 flex justify-center items-center">
+                <div className="absolute inset-x-0 bottom-16 md:bottom-14 flex justify-center items-center">
                   <button
                     onClick={capturePhoto}
                     disabled={!isCameraReady}
-                    className={`w-24 h-24 rounded-full border-2 border-white/40 flex items-center justify-center p-2 group bg-white/10 backdrop-blur-md transition-opacity ${
+                    className={`w-14 h-14 md:w-18 md:h-18 rounded-full border-2 border-white/40 flex items-center justify-center p-1.5 group bg-white/10 backdrop-blur-md transition-opacity ${
                       isCameraReady ? 'opacity-100' : 'opacity-60 cursor-not-allowed'
                     }`}
                   >
@@ -1288,24 +1287,24 @@ export default function App() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_24rem] gap-8 p-6 md:p-12 items-start"
+              className="flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_24rem] gap-6 md:gap-8 p-4 md:p-12 items-start"
             >
-              <section className="bg-white rounded-[2rem] border border-[#1A1A1A]/8 p-5 md:p-8 shadow-sm">
-                <div className="flex items-center justify-between gap-4 mb-6">
+              <section className="bg-white rounded-[1.75rem] md:rounded-[2rem] border border-[#1A1A1A]/8 p-4 md:p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-gray-400">Edit Before Analysis</p>
-                    <h2 className="font-serif text-3xl mt-2">Tune the frame.</h2>
+                    <h2 className="font-serif text-2xl md:text-3xl mt-2">Tune the frame.</h2>
                   </div>
                   <button
                     type="button"
                     onClick={applyEditorChanges}
-                    className="rounded-full bg-black px-5 py-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white"
+                    className="w-full sm:w-auto rounded-full bg-black px-5 py-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white"
                   >
                     Analyze Edit
                   </button>
                 </div>
 
-                <div className="rounded-[2rem] bg-[#f2eee7] p-4 md:p-6">
+                <div className="rounded-[1.5rem] md:rounded-[2rem] bg-[#f2eee7] p-3 md:p-6">
                   <div className={`mx-auto overflow-hidden rounded-[1.75rem] shadow-xl bg-black/10 ${
                     selectedAspectRatio === '3:4' ? 'max-w-md aspect-[3/4]' : 'max-w-4xl aspect-[16/9]'
                   }`}>
@@ -1314,7 +1313,7 @@ export default function App() {
                 </div>
               </section>
 
-              <aside className="bg-white rounded-[2rem] border border-[#1A1A1A]/8 p-5 md:p-6 shadow-sm space-y-6 xl:max-h-[calc(100vh-13rem)] xl:overflow-y-auto panel-scrollbar">
+              <aside className="bg-white rounded-[1.75rem] md:rounded-[2rem] border border-[#1A1A1A]/8 p-4 md:p-6 shadow-sm space-y-6 xl:max-h-[calc(100vh-13rem)] xl:overflow-y-auto panel-scrollbar">
                 <div className="space-y-5">
                   <EditorOptionGroup icon={<SlidersHorizontal className="w-4 h-4" />} label="Ratio">
                     {(['3:4', '16:9'] as AspectRatioOption[]).map((ratio) => (
@@ -1380,7 +1379,7 @@ export default function App() {
                   </EditorOptionGroup>
                 </div>
 
-                <div className="rounded-3xl border border-[#1A1A1A]/8 bg-[#FAF9F6] p-4 text-sm text-gray-500 leading-relaxed space-y-2">
+                <div className="rounded-[1.5rem] md:rounded-3xl border border-[#1A1A1A]/8 bg-[#FAF9F6] p-4 text-[13px] md:text-sm text-gray-500 leading-relaxed space-y-2">
                   <p>Rasio mengatur crop final untuk camera dan upload. Filter, frame, dan sticker akan ikut masuk ke gambar yang dianalisis dan disimpan.</p>
                   <p>
                     Live sticker preview memakai pelacakan wajah ringan jika browser mendukungnya. Jika tidak, posisi sticker akan tetap fallback ke area kepala default.
@@ -1422,16 +1421,16 @@ export default function App() {
               animate={{ opacity: 1 }}
               className="flex-1 flex flex-col md:flex-row overflow-hidden"
             >
-              <section className="md:w-[40%] p-8 md:p-12 border-b md:border-b-0 md:border-r border-[#1A1A1A]/10 flex flex-col">
+              <section className="md:w-[40%] p-6 md:p-12 border-b md:border-b-0 md:border-r border-[#1A1A1A]/10 flex flex-col">
                 <div className="flex-1 space-y-10">
                   <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gray-100 aspect-[4/5] md:aspect-auto md:flex-1">
                     <img src={image!} alt="Captured" className="w-full h-full object-cover" />
-                    <div className="absolute top-6 left-6 flex flex-wrap gap-2">
-                      <span className="glass px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm">
+                    <div className="absolute top-4 left-4 md:top-6 md:left-6 flex flex-wrap gap-2">
+                      <span className="glass px-3 md:px-4 py-1.5 rounded-full text-[8px] md:text-[9px] font-bold uppercase tracking-[0.18em] md:tracking-widest shadow-sm">
                         Detected: {analysis.mood}
                       </span>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-6 glass flex justify-between items-end">
+                    <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 glass flex justify-between items-end gap-3">
                       <div className="flex gap-1.5">
                         {analysis.colors.slice(0, 3).map((_, index) => (
                           <div key={index} className="w-3 h-3 rounded-full bg-black/20" />
@@ -1439,16 +1438,16 @@ export default function App() {
                       </div>
                       <div className="text-right">
                         <p className="text-[9px] uppercase font-bold opacity-40">Analysis Source</p>
-                        <p className="font-serif text-lg leading-none">{analysis.sourceLabel}</p>
+                        <p className="font-serif text-sm md:text-lg leading-none">{analysis.sourceLabel}</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h2 className="font-serif text-5xl leading-none tracking-tighter">
+                    <h2 className="font-serif text-4xl md:text-5xl leading-none tracking-tighter">
                       {analysis.mood}
                     </h2>
-                    <p className="text-sm text-gray-500 italic font-serif leading-relaxed pr-8">
+                    <p className="text-sm text-gray-500 italic font-serif leading-relaxed md:pr-8">
                       &ldquo;{analysis.vibe}&rdquo;
                     </p>
                     <div className="flex flex-wrap gap-2 pt-2">
@@ -1467,18 +1466,18 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="flex-1 p-8 md:p-12 bg-white flex flex-col">
+              <section className="flex-1 p-6 md:p-12 bg-white flex flex-col">
                 <div className="flex-1 space-y-12">
-                  <header className="flex justify-between items-end pb-4 border-b border-gray-100">
+                  <header className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 pb-4 border-b border-gray-100">
                     <div>
                       <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-1">Selections</h3>
                       <p className="text-[10px] text-gray-400 font-medium">Curated for your specific visual resonance</p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                       <button
                         type="button"
                         onClick={saveCurrentResultToHistory}
-                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
+                        className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.18em] md:tracking-[0.22em] transition-colors ${
                           saveState === 'saved'
                             ? 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700'
                             : 'border-[#1A1A1A]/10 text-[#1A1A1A]/70 hover:border-black hover:text-black'
@@ -1519,13 +1518,13 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <footer className="px-6 md:px-12 py-8 border-t border-[#1A1A1A]/10 flex flex-col md:row justify-between items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-semibold text-gray-400">
-          <div className="flex gap-6">
+        <footer className="px-4 md:px-12 py-8 border-t border-[#1A1A1A]/10 flex flex-col md:row justify-between items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-semibold text-gray-400">
+          <div className="flex flex-wrap justify-center gap-3 md:gap-6">
             <span className="mood-tag px-4 py-1.5 rounded-full cursor-default">Cinematic</span>
             <span className="mood-tag px-4 py-1.5 rounded-full cursor-default">Neural Engine</span>
             <span className="mood-tag px-4 py-1.5 rounded-full cursor-default">Design v2.0</span>
           </div>
-          <div className="italic opacity-60">
+          <div className="italic opacity-60 text-center">
             MoodTune Studio &copy; 2026 - Sensory Translation Module
           </div>
         </footer>
@@ -1553,8 +1552,8 @@ function EditorOptionGroup({
 }: EditorOptionGroupProps) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.28em] font-bold text-gray-400">
-        <span className="text-black/55">{icon}</span>
+      <div className="flex items-center gap-2 text-[9px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.28em] font-bold text-gray-400">
+        <span className="text-black/55 shrink-0">{icon}</span>
         <span>{label}</span>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -1573,7 +1572,7 @@ function EditorChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
+      className={`rounded-full px-3 md:px-4 py-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.16em] md:tracking-[0.22em] transition-colors ${
         active
           ? 'bg-black text-white'
           : 'border border-[#1A1A1A]/10 text-[#1A1A1A]/65 hover:border-black hover:text-black'
@@ -1604,7 +1603,7 @@ function StickerPreviewOverlay({
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute left-6 bottom-24 glass rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-black/70">
+      <div className="absolute left-3 md:left-6 bottom-20 md:bottom-24 glass rounded-full px-3 py-2 text-[8px] md:text-[9px] font-bold uppercase tracking-[0.16em] md:tracking-[0.2em] text-black/70 max-w-[52%] md:max-w-none">
         {faceTrackingActive ? 'Face Lock' : 'Centered Overlay'}
       </div>
       <div
