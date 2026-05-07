@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, RefreshCw, ArrowLeft, ExternalLink, Pause, Play, Youtube, BookmarkPlus, History, Sparkles, Frame, SlidersHorizontal } from 'lucide-react';
+import { Camera, RefreshCw, ArrowLeft, ExternalLink, Pause, Play, Youtube, BookmarkPlus, History, Sparkles, Frame, SlidersHorizontal, Share2, Copy } from 'lucide-react';
 import { analyzeMood } from './services/geminiService';
 import { MoodAnalysis, Recommendation } from './types/analysis';
 import { enrichMusicRecommendations, getRecommendationLinks } from './services/musicMetadataService';
@@ -117,6 +117,389 @@ function getEditorFilterValue(filter: EditorFilter) {
     default:
       return 'none';
   }
+}
+
+function buildInstagramCaption(analysis: MoodAnalysis) {
+  const songs = analysis.recommendations
+    .filter((item) => item.type === 'song')
+    .slice(0, 5)
+    .map((item, index) => `${index + 1}. ${item.title} - ${item.creator}`);
+
+  const colorsLine = analysis.colors.slice(0, 4).join(' / ');
+  const songSection = songs.length > 0 ? songs.join('\n') : 'No soundtrack recommendations available.';
+
+  return [
+    `${analysis.mood} energy.`,
+    '',
+    analysis.vibe,
+    '',
+    `Palette: ${colorsLine}`,
+    '',
+    '5 songs that match this mood:',
+    songSection,
+    '',
+    '#MoodTune #VisualVibe #SoundtrackMatch #GeminiVision',
+  ].join('\n');
+}
+
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return copied;
+}
+
+function triggerFileDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function buildInstagramShareCard({
+  imageSource,
+  analysis,
+}: {
+  imageSource: string;
+  analysis: MoodAnalysis;
+}) {
+  const image = await loadImageElement(imageSource);
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('Canvas is unavailable for Instagram share export.');
+  }
+
+  const width = 1080;
+  const height = 1920;
+  canvas.width = width;
+  canvas.height = height;
+  await document.fonts?.ready;
+
+  const backgroundGradient = context.createLinearGradient(0, 0, width, height);
+  backgroundGradient.addColorStop(0, '#fbf8f1');
+  backgroundGradient.addColorStop(0.5, '#f1eadf');
+  backgroundGradient.addColorStop(1, '#e6dac9');
+  context.fillStyle = backgroundGradient;
+  context.fillRect(0, 0, width, height);
+
+  context.save();
+  const softLight = context.createRadialGradient(150, 90, 20, 150, 90, 440);
+  softLight.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+  softLight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  context.fillStyle = softLight;
+  context.fillRect(0, 0, width, height);
+
+  const champagneLight = context.createRadialGradient(930, 240, 30, 930, 240, 420);
+  champagneLight.addColorStop(0, 'rgba(225, 198, 151, 0.34)');
+  champagneLight.addColorStop(1, 'rgba(225, 198, 151, 0)');
+  context.fillStyle = champagneLight;
+  context.fillRect(0, 0, width, height);
+  context.restore();
+
+  context.save();
+  context.globalAlpha = 0.22;
+  context.strokeStyle = 'rgba(255,255,255,0.65)';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(74, 144);
+  context.bezierCurveTo(280, 44, 800, 38, 1010, 200);
+  context.stroke();
+  context.beginPath();
+  context.moveTo(60, 1700);
+  context.bezierCurveTo(320, 1610, 740, 1600, 1020, 1760);
+  context.stroke();
+  context.restore();
+
+  const photoX = 86;
+  const photoY = 96;
+  const photoWidth = width - photoX * 2;
+  const photoHeight = 670;
+  const imageRatio = image.width / image.height;
+  const targetRatio = photoWidth / photoHeight;
+
+  let cropWidth = image.width;
+  let cropHeight = image.height;
+  let sourceX = 0;
+  let sourceY = 0;
+
+  if (imageRatio > targetRatio) {
+    cropWidth = image.height * targetRatio;
+    sourceX = (image.width - cropWidth) / 2;
+  } else {
+    cropHeight = image.width / targetRatio;
+    sourceY = (image.height - cropHeight) / 2;
+  }
+
+  const radius = 44;
+  context.save();
+  context.fillStyle = 'rgba(255,255,255,0.92)';
+  context.shadowColor = 'rgba(50, 34, 15, 0.14)';
+  context.shadowBlur = 40;
+  context.shadowOffsetY = 18;
+  roundRect(context, photoX - 10, photoY - 10, photoWidth + 20, photoHeight + 20, radius + 14);
+  context.fill();
+  context.restore();
+
+  context.save();
+  roundRect(context, photoX, photoY, photoWidth, photoHeight, radius);
+  context.clip();
+  context.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, photoX, photoY, photoWidth, photoHeight);
+
+  const photoGlare = context.createLinearGradient(photoX, photoY, photoX + photoWidth * 0.72, photoY + photoHeight * 0.62);
+  photoGlare.addColorStop(0, 'rgba(255,255,255,0.34)');
+  photoGlare.addColorStop(0.3, 'rgba(255,255,255,0.12)');
+  photoGlare.addColorStop(0.55, 'rgba(255,255,255,0.02)');
+  photoGlare.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = photoGlare;
+  context.beginPath();
+  context.moveTo(photoX + 70, photoY + 26);
+  context.lineTo(photoX + photoWidth * 0.62, photoY + 26);
+  context.lineTo(photoX + photoWidth * 0.34, photoY + photoHeight - 40);
+  context.lineTo(photoX + 10, photoY + photoHeight - 40);
+  context.closePath();
+  context.fill();
+  context.restore();
+
+  context.save();
+  context.fillStyle = 'rgba(255,255,255,0.88)';
+  roundRect(context, 118, 132, 292, 54, 27);
+  context.fill();
+  context.restore();
+  context.fillStyle = '#1a1a1a';
+  context.font = '700 19px "Inter", sans-serif';
+  context.fillText('MOODTUNE CURATION', 144, 167);
+
+  context.fillStyle = '#1a1a1a';
+  context.font = '700 82px "Playfair Display", Georgia, serif';
+  context.fillText(fitText(context, analysis.mood, 880), 90, 852);
+
+  context.fillStyle = 'rgba(26, 26, 26, 0.72)';
+  context.font = '500 27px "Inter", Arial, sans-serif';
+  const vibeLines = wrapText(context, `"${analysis.vibe}"`, 890);
+  vibeLines.slice(0, 4).forEach((line, index) => {
+    context.fillText(line, 94, 924 + index * 38);
+  });
+
+  const panelX = 76;
+  const panelY = 1126;
+  const panelWidth = 928;
+  const panelHeight = 682;
+
+  context.save();
+  context.fillStyle = 'rgba(255,255,255,0.95)';
+  context.shadowColor = 'rgba(26, 26, 26, 0.09)';
+  context.shadowBlur = 26;
+  context.shadowOffsetY = 12;
+  roundRect(context, panelX, panelY, panelWidth, panelHeight, 42);
+  context.fill();
+  context.restore();
+
+  context.save();
+  roundRect(context, panelX, panelY, panelWidth, panelHeight, 42);
+  context.clip();
+  const panelGlare = context.createLinearGradient(panelX, panelY, panelX + panelWidth, panelY + 480);
+  panelGlare.addColorStop(0, 'rgba(255,255,255,0.55)');
+  panelGlare.addColorStop(0.26, 'rgba(255,255,255,0.18)');
+  panelGlare.addColorStop(0.42, 'rgba(255,255,255,0.05)');
+  panelGlare.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = panelGlare;
+  context.beginPath();
+  context.moveTo(panelX, panelY);
+  context.lineTo(panelX + 486, panelY);
+  context.lineTo(panelX + 278, panelY + panelHeight);
+  context.lineTo(panelX, panelY + panelHeight);
+  context.closePath();
+  context.fill();
+  context.restore();
+
+  context.fillStyle = 'rgba(26, 26, 26, 0.42)';
+  context.font = '700 17px "Inter", Arial, sans-serif';
+  context.fillText('PALETTE', 116, 1190);
+  context.fillText('SOUNDTRACK', 116, 1320);
+  context.fillStyle = 'rgba(26, 26, 26, 0.34)';
+  context.font = '600 14px "Outfit", Arial, sans-serif';
+  context.fillText('5 TRACKS FOR THIS FRAME', 690, 1320);
+
+  analysis.colors.slice(0, 4).forEach((color, index) => {
+    const pillX = 116 + index * 212;
+    context.fillStyle = 'rgba(26, 26, 26, 0.055)';
+    roundRect(context, pillX, 1218, 188, 52, 26);
+    context.fill();
+    context.fillStyle = 'rgba(26, 26, 26, 0.76)';
+    context.font = '600 18px "Inter", Arial, sans-serif';
+    context.fillText(fitText(context, color.toUpperCase(), 150), pillX + 18, 1252);
+  });
+
+  const songs = analysis.recommendations.filter((item) => item.type === 'song').slice(0, 5);
+  songs.forEach((song, index) => {
+    const rowTop = 1368 + index * 84;
+    const rowCenterY = rowTop + 34;
+
+    context.fillStyle = index % 2 === 0 ? 'rgba(26, 26, 26, 0.045)' : 'rgba(255, 255, 255, 0.54)';
+    roundRect(context, 108, rowTop, 864, 68, 24);
+    context.fill();
+
+    context.save();
+    const badgeGradient = context.createLinearGradient(0, rowTop, 0, rowTop + 46);
+    badgeGradient.addColorStop(0, 'rgba(255,255,255,0.96)');
+    badgeGradient.addColorStop(1, 'rgba(26, 26, 26, 0.07)');
+    context.fillStyle = badgeGradient;
+    context.beginPath();
+    context.arc(142, rowCenterY, 20, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+
+    context.fillStyle = '#1a1a1a';
+    context.font = '700 16px "Inter", Arial, sans-serif';
+    context.fillText(String(index + 1), 137, rowCenterY + 6);
+
+    context.fillStyle = '#1a1a1a';
+    context.font = '700 22px "Inter", Arial, sans-serif';
+    context.fillText(fitText(context, song.title, 690), 184, rowTop + 26);
+    context.fillStyle = 'rgba(26, 26, 26, 0.58)';
+    context.font = '500 19px "Inter", Arial, sans-serif';
+    context.fillText(fitText(context, song.creator, 690), 184, rowTop + 54);
+  });
+
+  context.fillStyle = 'rgba(26, 26, 26, 0.24)';
+  context.fillRect(116, 1346, 848, 1);
+
+  context.fillStyle = 'rgba(26, 26, 26, 0.72)';
+  context.font = '700 20px "Inter", Arial, sans-serif';
+  context.fillText(analysis.sourceLabel.toUpperCase(), 116, 1834);
+
+  context.fillStyle = 'rgba(26, 26, 26, 0.42)';
+  context.font = '600 21px "Inter", Arial, sans-serif';
+  context.fillText('Made With MoodTune v1.0', 116, 1868);
+
+  context.save();
+  context.fillStyle = 'rgba(26, 26, 26, 0.08)';
+  context.beginPath();
+  context.arc(930, 1838, 54, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = 'rgba(255,255,255,0.55)';
+  context.beginPath();
+  context.arc(930, 1838, 28, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = 'rgba(26, 26, 26, 0.12)';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(930, 1838, 42, 0, Math.PI * 2);
+  context.stroke();
+  context.restore();
+
+  context.save();
+  context.strokeStyle = 'rgba(26, 26, 26, 0.08)';
+  context.lineWidth = 2;
+  roundRect(context, 48, 48, width - 96, height - 96, 34);
+  context.stroke();
+  context.restore();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Instagram share image could not be exported.'));
+        return;
+      }
+
+      resolve(blob);
+    }, 'image/png');
+  });
+}
+
+function roundRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.lineTo(x + width - radius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + radius);
+  context.lineTo(x + width, y + height - radius);
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  context.lineTo(x + radius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - radius);
+  context.lineTo(x, y + radius);
+  context.quadraticCurveTo(x, y, x + radius, y);
+  context.closePath();
+}
+
+function wrapText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (context.measureText(nextLine).width <= maxWidth) {
+      currentLine = nextLine;
+      return;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    currentLine = word;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+function fitText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  if (context.measureText(text).width <= maxWidth) {
+    return text;
+  }
+
+  let start = 0;
+  let end = text.length;
+  let result = '';
+
+  while (start <= end) {
+    const midpoint = Math.floor((start + end) / 2);
+    const candidate = `${text.slice(0, midpoint).trimEnd()}...`;
+
+    if (context.measureText(candidate).width <= maxWidth) {
+      result = candidate;
+      start = midpoint + 1;
+    } else {
+      end = midpoint - 1;
+    }
+  }
+
+  return result;
 }
 
 function loadImageElement(source: string) {
@@ -490,6 +873,8 @@ export default function App() {
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
   const [stickerAnchor, setStickerAnchor] = useState<StickerAnchor>(getDefaultStickerAnchor());
   const [isFaceTrackingActive, setIsFaceTrackingActive] = useState(false);
+  const [shareState, setShareState] = useState<'idle' | 'preparing' | 'shared' | 'downloaded' | 'copied' | 'error'>('idle');
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -848,6 +1233,58 @@ export default function App() {
     setSaveState('saved');
   }, [analysis, image, selectedAspectRatio]);
 
+  const copyInstagramCaption = useCallback(async () => {
+    if (!analysis) {
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(buildInstagramCaption(analysis));
+      setShareState('copied');
+      setShareMessage('Caption copied. Paste it into Instagram after sharing the image.');
+    } catch (copyError) {
+      console.error('Caption copy failed.', copyError);
+      setShareState('error');
+      setShareMessage('Caption could not be copied automatically on this browser.');
+    }
+  }, [analysis]);
+
+  const shareToInstagram = useCallback(async () => {
+    if (!analysis || !image) {
+      return;
+    }
+
+    setShareState('preparing');
+    setShareMessage('Preparing Instagram share card...');
+
+    try {
+      const caption = buildInstagramCaption(analysis);
+      const shareBlob = await buildInstagramShareCard({ imageSource: image, analysis });
+      const shareFile = new File([shareBlob], 'moodtune-instagram-share.png', { type: 'image/png' });
+      const shareData = {
+        title: `MoodTune - ${analysis.mood}`,
+        text: caption,
+        files: [shareFile],
+      };
+
+      if (navigator.share && navigator.canShare?.({ files: [shareFile] })) {
+        await navigator.share(shareData);
+        setShareState('shared');
+        setShareMessage('Share sheet opened. Choose Instagram Stories if it is available on this device.');
+        return;
+      }
+
+      triggerFileDownload(shareBlob, 'moodtune-instagram-share.png');
+      await copyTextToClipboard(caption);
+      setShareState('downloaded');
+      setShareMessage('Instagram story card downloaded and caption copied. Upload it to Story, then paste the caption.');
+    } catch (shareError) {
+      console.error('Instagram share preparation failed.', shareError);
+      setShareState('error');
+      setShareMessage('Instagram share card could not be prepared.');
+    }
+  }, [analysis, image]);
+
   const openHistoryEntry = (entry: HistoryEntry) => {
     enrichmentRunRef.current += 1;
     setActivePreviewId(null);
@@ -855,6 +1292,8 @@ export default function App() {
     setAnalysis(entry.analysis);
     setSelectedAspectRatio(entry.aspectRatio);
     setSaveState('saved');
+    setShareState('idle');
+    setShareMessage(null);
     setStage('results');
 
     const runId = enrichmentRunRef.current;
@@ -874,6 +1313,8 @@ export default function App() {
     setError(null);
     setActivePreviewId(null);
     setSaveState('idle');
+    setShareState('idle');
+    setShareMessage(null);
     enrichmentRunRef.current += 1;
 
     try {
@@ -1053,6 +1494,8 @@ export default function App() {
     setStickerAnchor(getDefaultStickerAnchor());
     setIsFaceTrackingActive(false);
     setSaveState('idle');
+    setShareState('idle');
+    setShareMessage(null);
   };
 
   return (
@@ -1462,6 +1905,15 @@ export default function App() {
                         {analysis.warning}
                       </div>
                     )}
+                    {shareMessage && (
+                      <div className={`rounded-2xl border p-4 text-xs ${
+                        shareState === 'error'
+                          ? 'border-red-500/20 bg-red-500/5 text-red-700'
+                          : 'border-black/10 bg-black/5 text-black/70'
+                      }`}>
+                        {shareMessage}
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
@@ -1474,6 +1926,30 @@ export default function App() {
                       <p className="text-[10px] text-gray-400 font-medium">Curated for your specific visual resonance</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void shareToInstagram();
+                        }}
+                        className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.18em] md:tracking-[0.22em] transition-colors ${
+                          shareState === 'preparing'
+                            ? 'border-black bg-black text-white'
+                            : 'border-[#1A1A1A]/10 text-[#1A1A1A]/70 hover:border-black hover:text-black'
+                        }`}
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>{shareState === 'preparing' ? 'Preparing...' : 'Share Story Card'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void copyInstagramCaption();
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[#1A1A1A]/10 px-4 py-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.18em] md:tracking-[0.22em] text-[#1A1A1A]/70 transition-colors hover:border-black hover:text-black"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Caption</span>
+                      </button>
                       <button
                         type="button"
                         onClick={saveCurrentResultToHistory}
@@ -1520,12 +1996,10 @@ export default function App() {
 
         <footer className="px-4 md:px-12 py-8 border-t border-[#1A1A1A]/10 flex flex-col md:row justify-between items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-semibold text-gray-400">
           <div className="flex flex-wrap justify-center gap-3 md:gap-6">
-            <span className="mood-tag px-4 py-1.5 rounded-full cursor-default">Cinematic</span>
-            <span className="mood-tag px-4 py-1.5 rounded-full cursor-default">Neural Engine</span>
-            <span className="mood-tag px-4 py-1.5 rounded-full cursor-default">Design v2.0</span>
+            
           </div>
           <div className="italic opacity-60 text-center">
-            MoodTune Studio &copy; 2026 - Sensory Translation Module
+            MoodTune Studio &copy; 2026 - Sensory Translation Module copyright &copy; 2026 Yizreel Schwartz.
           </div>
         </footer>
       </main>
@@ -1992,3 +2466,4 @@ function SpotifyIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
