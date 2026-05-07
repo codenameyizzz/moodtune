@@ -48,7 +48,7 @@ export async function analyzeMood(base64Image: string): Promise<MoodAnalysis> {
     );
   }
 
-  const model = 'gemini-3-flash-preview';
+  const model = 'gemini-3.1-flash-lite';
 
   const prompt = `Analyze this image in terms of mood, emotional resonance, and visual atmosphere.
 Focus on the vibe and colors.
