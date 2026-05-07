@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, RefreshCw, ArrowLeft, ExternalLink, Youtube } from 'lucide-react';
+import { Camera, RefreshCw, ArrowLeft, ExternalLink, Pause, Play, Youtube } from 'lucide-react';
 import { analyzeMood } from './services/geminiService';
 import { MoodAnalysis, Recommendation } from './types/analysis';
 import { enrichMusicRecommendations, getRecommendationLinks } from './services/musicMetadataService';
@@ -19,11 +19,13 @@ export default function App() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const audioElementsRef = useRef<Record<string, HTMLAudioElement | null>>({});
   const enrichmentRunRef = useRef(0);
 
   const stopCameraStream = useCallback(() => {
@@ -144,6 +146,24 @@ export default function App() {
     };
   }, [stopCameraStream]);
 
+  useEffect(() => {
+    Object.entries(audioElementsRef.current).forEach(([previewId, audioElement]: [string, HTMLAudioElement | null]) => {
+      if (!audioElement) {
+        return;
+      }
+
+      if (activePreviewId === previewId) {
+        void audioElement.play().catch((playbackError) => {
+          console.error('Audio preview could not start.', playbackError);
+          setActivePreviewId((current) => (current === previewId ? null : current));
+        });
+      } else {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+      }
+    });
+  }, [activePreviewId]);
+
   const startCamera = async () => {
     const preferredConstraints: MediaStreamConstraints = {
       video: {
@@ -186,6 +206,7 @@ export default function App() {
     setImage(dataUrl);
     setStage('loading');
     setError(null);
+    setActivePreviewId(null);
     enrichmentRunRef.current += 1;
 
     try {
@@ -308,6 +329,7 @@ export default function App() {
 
   const reset = () => {
     enrichmentRunRef.current += 1;
+    setActivePreviewId(null);
     stopCameraStream();
     setStage('home');
     setImage(null);
@@ -556,6 +578,9 @@ export default function App() {
                     <EditorialGroup
                       title="Soundtrack"
                       items={analysis.recommendations.filter((item) => item.type === 'song')}
+                      activePreviewId={activePreviewId}
+                      onTogglePreview={setActivePreviewId}
+                      audioElementsRef={audioElementsRef}
                     />
                     <EditorialGroup
                       title="Literature"
@@ -587,7 +612,19 @@ export default function App() {
   );
 }
 
-function EditorialGroup({ title, items }: { title: string; items: Recommendation[] }) {
+function EditorialGroup({
+  title,
+  items,
+  activePreviewId,
+  onTogglePreview,
+  audioElementsRef,
+}: {
+  title: string;
+  items: Recommendation[];
+  activePreviewId?: string | null;
+  onTogglePreview?: React.Dispatch<React.SetStateAction<string | null>>;
+  audioElementsRef?: React.MutableRefObject<Record<string, HTMLAudioElement | null>>;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -603,7 +640,14 @@ function EditorialGroup({ title, items }: { title: string; items: Recommendation
         {items.map((item, index) =>
           <React.Fragment key={index}>
             {item.type === 'song'
-              ? <SongCard item={item} />
+              ? (
+                <SongCard
+                  item={item}
+                  activePreviewId={activePreviewId ?? null}
+                  onTogglePreview={onTogglePreview}
+                  audioElementsRef={audioElementsRef}
+                />
+              )
               : <RecommendationCard item={item} />}
           </React.Fragment>,
         )}
@@ -627,11 +671,29 @@ function RecommendationCard({ item }: { item: Recommendation }) {
   );
 }
 
-function SongCard({ item }: { item: Recommendation }) {
+function SongCard({
+  item,
+  activePreviewId,
+  onTogglePreview,
+  audioElementsRef,
+}: {
+  item: Recommendation;
+  activePreviewId: string | null;
+  onTogglePreview?: React.Dispatch<React.SetStateAction<string | null>>;
+  audioElementsRef?: React.MutableRefObject<Record<string, HTMLAudioElement | null>>;
+}) {
   const links = getRecommendationLinks(item);
+  const previewId = `${item.title}::${item.creator}`;
+  const hasPreview = Boolean(item.preview?.audioPreviewUrl);
+  const isPlaying = activePreviewId === previewId;
   const primaryHref = links.primary === 'youtube' ? links.youtube : links.spotify;
 
-  const openPrimary = () => {
+  const togglePreview = () => {
+    if (hasPreview && onTogglePreview) {
+      onTogglePreview((current) => (current === previewId ? null : previewId));
+      return;
+    }
+
     if (primaryHref) {
       window.open(primaryHref, '_blank', 'noopener,noreferrer');
     }
@@ -640,15 +702,15 @@ function SongCard({ item }: { item: Recommendation }) {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      openPrimary();
+      togglePreview();
     }
   };
 
   return (
     <div
-      role="link"
+      role="button"
       tabIndex={0}
-      onClick={openPrimary}
+      onClick={togglePreview}
       onKeyDown={handleKeyDown}
       className="group p-4 border border-[#1A1A1A]/5 rounded-xl flex items-start gap-4 hover:border-black/20 transition-all duration-300 bg-[#FAF9F6]/50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/10"
     >
@@ -670,19 +732,72 @@ function SongCard({ item }: { item: Recommendation }) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h4 className="text-xs font-bold truncate tracking-tight">{item.title}</h4>
-            <p className="text-[9px] uppercase tracking-widest text-gray-500 truncate mt-0.5">{item.creator}</p>
+          <div className="min-w-0 pr-2">
+            <h4 className="text-xs font-bold tracking-tight leading-snug whitespace-normal break-words">
+              {item.title}
+            </h4>
+            <p className="text-[9px] uppercase tracking-widest text-gray-500 mt-1 whitespace-normal break-words leading-relaxed">
+              {item.creator}
+            </p>
             {item.preview?.albumTitle && (
-              <p className="text-[10px] text-gray-400 truncate mt-1 italic">
+              <p className="text-[10px] text-gray-400 mt-1 italic whitespace-normal break-words leading-relaxed">
                 {item.preview.albumTitle}
               </p>
             )}
           </div>
-          <ExternalLink className="w-3.5 h-3.5 text-black/30 flex-shrink-0 mt-0.5 group-hover:text-black/60 transition-colors" />
+          <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+            {!hasPreview && (
+              <ExternalLink className="w-3.5 h-3.5 text-black/30 group-hover:text-black/60 transition-colors" />
+            )}
+          </div>
         </div>
 
         <p className="text-[10px] text-gray-400 leading-tight mt-2 line-clamp-2 font-light">{item.description}</p>
+        {item.preview?.audioPreviewUrl && (
+          <div
+            className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[#1A1A1A]/8 bg-white/70 px-3 py-2.5"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  togglePreview();
+                }}
+                className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0 hover:scale-105 transition-transform"
+                aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
+              >
+                {isPlaying ? (
+                  <Pause className="w-3 h-3 fill-current" />
+                ) : (
+                  <Play className="w-3 h-3 fill-current ml-0.5" />
+                )}
+              </button>
+              <div className={`flex items-end gap-0.5 h-4 ${isPlaying ? 'opacity-100' : 'opacity-40'} transition-opacity`}>
+                {[0, 1, 2, 3].map((bar) => (
+                  <span
+                    key={bar}
+                    className={`equalizer-bar ${isPlaying ? 'is-playing' : ''}`}
+                    style={{ animationDelay: `${bar * 0.12}s` }}
+                  />
+                ))}
+              </div>
+            </div>
+            <audio
+              preload="none"
+              src={item.preview.audioPreviewUrl}
+              ref={(node) => {
+                if (audioElementsRef) {
+                  audioElementsRef.current[previewId] = node;
+                }
+              }}
+              onEnded={() => onTogglePreview?.((current) => (current === previewId ? null : current))}
+              className="hidden"
+            />
+          </div>
+        )}
         <div className="mt-3 flex items-center gap-2 flex-wrap">
           {links.spotify && (
             <MediaLink

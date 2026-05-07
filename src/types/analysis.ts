@@ -6,6 +6,7 @@ export interface Recommendation {
   links?: {
     spotify?: string;
     youtube?: string;
+    appleMusic?: string;
     primary?: 'spotify' | 'youtube';
   };
   preview?: {
@@ -15,6 +16,8 @@ export interface Recommendation {
     artworkUrl?: string | null;
     musicbrainzUrl?: string | null;
     matchScore?: number | null;
+    audioPreviewUrl?: string | null;
+    previewProvider?: 'itunes' | null;
   } | null;
 }
 

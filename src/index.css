@@ -33,6 +33,29 @@ body {
   @apply bg-[#1A1A1A] text-[#FAF9F6];
 }
 
+.equalizer-bar {
+  width: 3px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.28);
+  transform-origin: center bottom;
+  transition: background 0.2s ease;
+}
+
+.equalizer-bar.is-playing {
+  background: rgba(26, 26, 26, 0.9);
+  animation: equalizer-bounce 0.9s ease-in-out infinite;
+}
+
+@keyframes equalizer-bounce {
+  0%, 100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1.35);
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;

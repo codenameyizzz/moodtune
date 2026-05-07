@@ -5,6 +5,7 @@ const MUSIC_API_BASE = (import.meta.env.VITE_MUSIC_API_BASE || '').replace(/\/$/
 type MusicLookupResponse = {
   spotifyUrl?: string;
   youtubeUrl?: string;
+  appleMusicUrl?: string;
   preview?: Recommendation['preview'];
 };
 
@@ -16,6 +17,7 @@ function buildFallbackLinks(recommendation: Recommendation) {
   return {
     spotify: `https://open.spotify.com/search/${buildSearchQuery(recommendation)}`,
     youtube: `https://www.youtube.com/results?search_query=${buildSearchQuery(recommendation)}`,
+    appleMusic: undefined,
     primary: 'spotify' as const,
   };
 }
@@ -41,6 +43,7 @@ async function enrichSongRecommendation(recommendation: Recommendation): Promise
       links: {
         spotify: payload.spotifyUrl,
         youtube: payload.youtubeUrl,
+        appleMusic: payload.appleMusicUrl,
         primary: payload.spotifyUrl ? 'spotify' : 'youtube',
       },
       preview: payload.preview ?? null,
