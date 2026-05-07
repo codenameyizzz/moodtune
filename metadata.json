@@ -1,0 +1,8 @@
+{
+  "name": "MoodTune",
+  "description": "An elegant AI-powered visual nuance analyzer that recommends music, books, and films based on the mood of your photos.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}
