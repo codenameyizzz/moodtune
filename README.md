@@ -26,11 +26,17 @@ View the original AI Studio app: https://ai.studio/apps/fc8a7f0e-f2f4-4759-80a4-
    `npm run dev`
 4. Open the local URL printed by Vite.
 
+`npm run dev` now starts two local processes:
+- the React/Vite frontend on `http://localhost:3000`
+- the local music metadata server on `http://localhost:8787`
+
 By default the app tries port `3000`. If that port is already in use, Vite will automatically choose the next available port, such as `3001`.
 
 ## Available Scripts
 
 - `npm run dev`: start the local development server
+- `npm run dev:client`: start only the Vite frontend
+- `npm run dev:server`: start only the local music metadata server
 - `npm run build`: create a production build in `dist/`
 - `npm run preview`: serve the production build locally
 - `npm run lint`: run TypeScript type-checking
@@ -39,4 +45,5 @@ By default the app tries port `3000`. If that port is already in use, Vite will 
 ## Notes
 
 - The current implementation injects `GEMINI_API_KEY` into the frontend bundle through Vite config. That is acceptable for local testing, but not a production-safe design. For production, move Gemini calls behind a backend endpoint and keep the API key server-side.
+- Song recommendations now enrich themselves with free MusicBrainz metadata and Cover Art Archive artwork, then link out to Spotify and YouTube search pages.
 - Camera access requires browser permission.

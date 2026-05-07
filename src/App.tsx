@@ -5,9 +5,10 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Camera, RefreshCw, ArrowLeft, ExternalLink, Youtube } from 'lucide-react';
 import { analyzeMood } from './services/geminiService';
 import { MoodAnalysis, Recommendation } from './types/analysis';
+import { enrichMusicRecommendations, getRecommendationLinks } from './services/musicMetadataService';
 
 export default function App() {
   const [stage, setStage] = useState<'home' | 'camera' | 'loading' | 'results'>('home');
@@ -19,6 +20,7 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const enrichmentRunRef = useRef(0);
 
   const stopCameraStream = useCallback(() => {
     if (cameraStreamRef.current) {
@@ -90,11 +92,21 @@ export default function App() {
     setImage(dataUrl);
     setStage('loading');
     setError(null);
+    enrichmentRunRef.current += 1;
 
     try {
       const result = await analyzeMood(dataUrl);
       setAnalysis(result);
       setStage('results');
+
+      const runId = enrichmentRunRef.current;
+      void enrichMusicRecommendations(result.recommendations).then((recommendations) => {
+        if (enrichmentRunRef.current !== runId) {
+          return;
+        }
+
+        setAnalysis((current) => (current ? { ...current, recommendations } : current));
+      });
     } catch (analysisError: unknown) {
       const message =
         analysisError instanceof Error
@@ -145,6 +157,7 @@ export default function App() {
   };
 
   const reset = () => {
+    enrichmentRunRef.current += 1;
     stopCameraStream();
     setStage('home');
     setImage(null);
@@ -430,19 +443,157 @@ function EditorialGroup({ title, items }: { title: string; items: Recommendation
       </div>
 
       <div className="space-y-4">
-        {items.map((item, index) => (
-          <div key={index} className="group p-4 border border-[#1A1A1A]/5 rounded-xl flex items-center gap-4 hover:border-black/20 transition-all duration-300 bg-[#FAF9F6]/50">
-            <div className="w-12 h-12 bg-black flex-shrink-0 rounded-lg flex items-center justify-center">
-              <span className="text-[8px] text-white/40 uppercase font-bold tracking-tighter">Mood</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="text-xs font-bold truncate tracking-tight">{item.title}</h4>
-              <p className="text-[9px] uppercase tracking-widest text-gray-500 truncate mt-0.5">{item.creator}</p>
-              <p className="text-[10px] text-gray-400 leading-tight mt-2 line-clamp-2 font-light">{item.description}</p>
-            </div>
-          </div>
-        ))}
+        {items.map((item, index) =>
+          <React.Fragment key={index}>
+            {item.type === 'song'
+              ? <SongCard item={item} />
+              : <RecommendationCard item={item} />}
+          </React.Fragment>,
+        )}
       </div>
     </motion.div>
+  );
+}
+
+function RecommendationCard({ item }: { item: Recommendation }) {
+  return (
+    <div className="group p-4 border border-[#1A1A1A]/5 rounded-xl flex items-center gap-4 hover:border-black/20 transition-all duration-300 bg-[#FAF9F6]/50">
+      <div className="w-12 h-12 bg-black flex-shrink-0 rounded-lg flex items-center justify-center">
+        <span className="text-[8px] text-white/40 uppercase font-bold tracking-tighter">Mood</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <h4 className="text-xs font-bold truncate tracking-tight">{item.title}</h4>
+        <p className="text-[9px] uppercase tracking-widest text-gray-500 truncate mt-0.5">{item.creator}</p>
+        <p className="text-[10px] text-gray-400 leading-tight mt-2 line-clamp-2 font-light">{item.description}</p>
+      </div>
+    </div>
+  );
+}
+
+function SongCard({ item }: { item: Recommendation }) {
+  const links = getRecommendationLinks(item);
+  const primaryHref = links.primary === 'youtube' ? links.youtube : links.spotify;
+
+  const openPrimary = () => {
+    if (primaryHref) {
+      window.open(primaryHref, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openPrimary();
+    }
+  };
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openPrimary}
+      onKeyDown={handleKeyDown}
+      className="group p-4 border border-[#1A1A1A]/5 rounded-xl flex items-start gap-4 hover:border-black/20 transition-all duration-300 bg-[#FAF9F6]/50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/10"
+    >
+      <div className="w-14 h-14 bg-black/95 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center">
+        {item.preview?.artworkUrl ? (
+          <img
+            src={item.preview.artworkUrl}
+            alt={`${item.title} cover art`}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
+          />
+        ) : (
+          <MediaBadge />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold truncate tracking-tight">{item.title}</h4>
+            <p className="text-[9px] uppercase tracking-widest text-gray-500 truncate mt-0.5">{item.creator}</p>
+            {item.preview?.albumTitle && (
+              <p className="text-[10px] text-gray-400 truncate mt-1 italic">
+                {item.preview.albumTitle}
+              </p>
+            )}
+          </div>
+          <ExternalLink className="w-3.5 h-3.5 text-black/30 flex-shrink-0 mt-0.5 group-hover:text-black/60 transition-colors" />
+        </div>
+
+        <p className="text-[10px] text-gray-400 leading-tight mt-2 line-clamp-2 font-light">{item.description}</p>
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          {links.spotify && (
+            <MediaLink
+              href={links.spotify}
+              label="Open in Spotify"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <SpotifyIcon className="w-3.5 h-3.5" />
+              <span>Spotify</span>
+            </MediaLink>
+          )}
+          {links.youtube && (
+            <MediaLink
+              href={links.youtube}
+              label="Open in YouTube"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Youtube className="w-3.5 h-3.5" />
+              <span>YouTube</span>
+            </MediaLink>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MediaLink({
+  href,
+  label,
+  children,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  children: React.ReactNode;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={label}
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full border border-[#1A1A1A]/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#1A1A1A]/70 transition-colors hover:border-black hover:text-black"
+    >
+      {children}
+    </a>
+  );
+}
+
+function MediaBadge() {
+  return (
+    <div className="flex items-center gap-1.5">
+      <SpotifyIcon className="w-3.5 h-3.5 text-white" />
+      <Youtube className="w-3.5 h-3.5 text-white" />
+    </div>
+  );
+}
+
+function SpotifyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <circle cx="12" cy="12" r="10" fill="currentColor" />
+      <path d="M7.4 9.2C10.8 8 14.4 8.2 17.3 9.8" stroke="#FAF9F6" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M8 12C10.7 11.1 13.5 11.2 15.8 12.4" stroke="#FAF9F6" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8.7 14.5C10.5 13.9 12.4 13.9 14 14.7" stroke="#FAF9F6" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
   );
 }
