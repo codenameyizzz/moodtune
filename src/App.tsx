@@ -5,14 +5,476 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, RefreshCw, ArrowLeft, ExternalLink, Pause, Play, Youtube } from 'lucide-react';
+import { Camera, RefreshCw, ArrowLeft, ExternalLink, Pause, Play, Youtube, BookmarkPlus, History, Sparkles, Frame, SlidersHorizontal } from 'lucide-react';
 import { analyzeMood } from './services/geminiService';
 import { MoodAnalysis, Recommendation } from './types/analysis';
 import { enrichMusicRecommendations, getRecommendationLinks } from './services/musicMetadataService';
 
+type AppStage = 'home' | 'camera' | 'editor' | 'loading' | 'results';
+type AspectRatioOption = '3:4' | '16:9';
+type EditorFilter = 'none' | 'warm' | 'mono' | 'dreamy';
+type EditorSticker = 'none' | 'hearts' | 'sparkles' | 'blush' | 'pixel';
+type EditorFrame = 'none' | 'postcard' | 'cinema';
+type StickerAnchor = {
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+  tracked: boolean;
+};
+
+type FaceDetectionLike = {
+  boundingBox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+};
+
+type FaceDetectorCtor = new (options?: { fastMode?: boolean; maxDetectedFaces?: number }) => {
+  detect: (input: ImageBitmapSource) => Promise<FaceDetectionLike[]>;
+};
+
+type HistoryEntry = {
+  id: string;
+  image: string;
+  analysis: MoodAnalysis;
+  createdAt: string;
+  aspectRatio: AspectRatioOption;
+};
+
+const HISTORY_STORAGE_KEY = 'moodtune-history-v1';
+const HISTORY_LIMIT = 5;
+
+const ASPECT_RATIO_DIMENSIONS: Record<AspectRatioOption, { width: number; height: number }> = {
+  '3:4': { width: 960, height: 1280 },
+  '16:9': { width: 1280, height: 720 },
+};
+
+function getAspectRatioValue(aspectRatio: AspectRatioOption) {
+  return aspectRatio === '3:4' ? 3 / 4 : 16 / 9;
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function getDefaultStickerAnchor(): StickerAnchor {
+  return {
+    centerX: 0.5,
+    centerY: 0.38,
+    width: 0.26,
+    height: 0.26,
+    tracked: false,
+  };
+}
+
+function mapStickerAnchorToCroppedOutput({
+  anchor,
+  sourceWidth,
+  sourceHeight,
+  sourceX,
+  sourceY,
+  cropWidth,
+  cropHeight,
+}: {
+  anchor?: StickerAnchor | null;
+  sourceWidth: number;
+  sourceHeight: number;
+  sourceX: number;
+  sourceY: number;
+  cropWidth: number;
+  cropHeight: number;
+}) {
+  const base = anchor ?? getDefaultStickerAnchor();
+  const anchorCenterX = base.centerX * sourceWidth;
+  const anchorCenterY = base.centerY * sourceHeight;
+  const anchorWidth = base.width * sourceWidth;
+  const anchorHeight = base.height * sourceHeight;
+
+  return {
+    centerX: clamp01((anchorCenterX - sourceX) / cropWidth),
+    centerY: clamp01((anchorCenterY - sourceY) / cropHeight),
+    width: clamp01(anchorWidth / cropWidth),
+    height: clamp01(anchorHeight / cropHeight),
+    tracked: base.tracked,
+  };
+}
+
+function getFaceDetectorCtor() {
+  return (window as Window & { FaceDetector?: FaceDetectorCtor }).FaceDetector;
+}
+
+function getEditorFilterValue(filter: EditorFilter) {
+  switch (filter) {
+    case 'warm':
+      return 'saturate(1.08) contrast(1.04) sepia(0.16) hue-rotate(-6deg)';
+    case 'mono':
+      return 'grayscale(1) contrast(1.08) brightness(1.02)';
+    case 'dreamy':
+      return 'saturate(1.12) brightness(1.05) contrast(0.96)';
+    default:
+      return 'none';
+  }
+}
+
+function loadImageElement(source: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Image data could not be loaded for editing.'));
+    image.src = source;
+  });
+}
+
+function drawHeart(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  size: number,
+  fillStyle: string,
+  strokeStyle = 'rgba(255,255,255,0.92)',
+) {
+  const topCurveHeight = size * 0.32;
+  context.save();
+  context.beginPath();
+  context.moveTo(centerX, centerY + topCurveHeight);
+  context.bezierCurveTo(
+    centerX,
+    centerY,
+    centerX - size / 2,
+    centerY,
+    centerX - size / 2,
+    centerY + topCurveHeight,
+  );
+  context.bezierCurveTo(
+    centerX - size / 2,
+    centerY + (size + topCurveHeight) / 2,
+    centerX,
+    centerY + (size + topCurveHeight) / 2,
+    centerX,
+    centerY + size,
+  );
+  context.bezierCurveTo(
+    centerX,
+    centerY + (size + topCurveHeight) / 2,
+    centerX + size / 2,
+    centerY + (size + topCurveHeight) / 2,
+    centerX + size / 2,
+    centerY + topCurveHeight,
+  );
+  context.bezierCurveTo(
+    centerX + size / 2,
+    centerY,
+    centerX,
+    centerY,
+    centerX,
+    centerY + topCurveHeight,
+  );
+  context.closePath();
+  context.fillStyle = fillStyle;
+  context.shadowColor = 'rgba(255, 77, 136, 0.22)';
+  context.shadowBlur = size * 0.18;
+  context.lineWidth = Math.max(2, size * 0.08);
+  context.strokeStyle = strokeStyle;
+  context.stroke();
+  context.fill();
+  context.restore();
+}
+
+function drawSparkle(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  size: number,
+  fillStyle: string,
+) {
+  context.save();
+  context.translate(centerX, centerY);
+  context.rotate(Math.PI / 4);
+  context.fillStyle = fillStyle;
+  context.shadowColor = 'rgba(255,255,255,0.35)';
+  context.shadowBlur = size * 0.2;
+  context.beginPath();
+  context.moveTo(0, -size);
+  context.lineTo(size * 0.24, -size * 0.24);
+  context.lineTo(size, 0);
+  context.lineTo(size * 0.24, size * 0.24);
+  context.lineTo(0, size);
+  context.lineTo(-size * 0.24, size * 0.24);
+  context.lineTo(-size, 0);
+  context.lineTo(-size * 0.24, -size * 0.24);
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
+function drawPixelHeart(
+  context: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  pixelSize: number,
+  fillStyle: string,
+) {
+  const pattern = [
+    [0, 1, 1, 0, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0],
+  ];
+
+  context.save();
+  context.fillStyle = fillStyle;
+  context.shadowColor = 'rgba(255,255,255,0.18)';
+  context.shadowBlur = pixelSize * 0.4;
+  pattern.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      if (!cell) return;
+      context.fillRect(startX + colIndex * pixelSize, startY + rowIndex * pixelSize, pixelSize, pixelSize);
+    });
+  });
+  context.restore();
+}
+
+function drawStickerOverlay(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  sticker: EditorSticker,
+  anchor?: StickerAnchor | null,
+) {
+  if (sticker === 'none') {
+    return;
+  }
+
+  const resolvedAnchor = anchor ?? getDefaultStickerAnchor();
+  const faceCenterX = resolvedAnchor.centerX * width;
+  const faceCenterY = resolvedAnchor.centerY * height;
+  const faceWidth = Math.max(width * 0.16, resolvedAnchor.width * width);
+  const faceHeight = Math.max(height * 0.16, resolvedAnchor.height * height);
+  const headTopY = faceCenterY - faceHeight * 0.72;
+  const topLeftX = faceCenterX - faceWidth * 0.9;
+  const topRightX = faceCenterX + faceWidth * 0.72;
+  const sizeBase = Math.min(faceWidth, faceHeight);
+
+  if (sticker === 'hearts') {
+    [
+      { x: topLeftX - faceWidth * 0.12, y: headTopY + faceHeight * 0.02, size: sizeBase * 0.44, color: 'rgba(255, 116, 156, 0.98)' },
+      { x: topLeftX + faceWidth * 0.18, y: headTopY - faceHeight * 0.14, size: sizeBase * 0.26, color: 'rgba(255, 182, 206, 0.96)' },
+      { x: faceCenterX - faceWidth * 0.08, y: headTopY - faceHeight * 0.22, size: sizeBase * 0.19, color: 'rgba(255, 203, 220, 0.96)' },
+      { x: topRightX, y: headTopY + faceHeight * 0.07, size: sizeBase * 0.4, color: 'rgba(255, 116, 156, 0.98)' },
+      { x: topRightX + faceWidth * 0.26, y: headTopY - faceHeight * 0.1, size: sizeBase * 0.24, color: 'rgba(255, 188, 214, 0.96)' },
+      { x: faceCenterX + faceWidth * 0.24, y: headTopY - faceHeight * 0.28, size: sizeBase * 0.18, color: 'rgba(255, 159, 194, 0.94)' },
+    ].forEach((item) => {
+      drawHeart(context, item.x, item.y, item.size, item.color);
+    });
+
+    context.save();
+    context.fillStyle = 'rgba(255,255,255,0.92)';
+    [
+      { x: faceCenterX - faceWidth * 0.42, y: headTopY + faceHeight * 0.18, radius: sizeBase * 0.035 },
+      { x: faceCenterX + faceWidth * 0.5, y: headTopY + faceHeight * 0.08, radius: sizeBase * 0.03 },
+      { x: faceCenterX + faceWidth * 0.08, y: headTopY - faceHeight * 0.02, radius: sizeBase * 0.024 },
+    ].forEach((dot) => {
+      context.beginPath();
+      context.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.restore();
+  }
+
+  if (sticker === 'sparkles') {
+    [
+      { x: faceCenterX - faceWidth * 0.82, y: headTopY + faceHeight * 0.08, size: sizeBase * 0.22, color: 'rgba(255, 224, 145, 0.98)' },
+      { x: faceCenterX - faceWidth * 0.34, y: headTopY - faceHeight * 0.2, size: sizeBase * 0.16, color: 'rgba(255, 244, 205, 0.96)' },
+      { x: faceCenterX + faceWidth * 0.06, y: headTopY - faceHeight * 0.28, size: sizeBase * 0.2, color: 'rgba(255, 231, 160, 0.98)' },
+      { x: faceCenterX + faceWidth * 0.55, y: headTopY - faceHeight * 0.08, size: sizeBase * 0.15, color: 'rgba(255, 247, 219, 0.96)' },
+      { x: faceCenterX + faceWidth * 0.9, y: headTopY + faceHeight * 0.12, size: sizeBase * 0.24, color: 'rgba(255, 221, 136, 0.98)' },
+    ].forEach((sparkle) => {
+      drawSparkle(context, sparkle.x, sparkle.y, sparkle.size, sparkle.color);
+    });
+  }
+
+  if (sticker === 'blush') {
+    context.save();
+    context.fillStyle = 'rgba(255, 133, 173, 0.34)';
+    context.filter = `blur(${Math.max(10, sizeBase * 0.18)}px)`;
+    context.beginPath();
+    context.ellipse(faceCenterX - faceWidth * 0.34, faceCenterY + faceHeight * 0.14, faceWidth * 0.2, faceHeight * 0.1, -0.12, 0, Math.PI * 2);
+    context.fill();
+    context.beginPath();
+    context.ellipse(faceCenterX + faceWidth * 0.34, faceCenterY + faceHeight * 0.14, faceWidth * 0.2, faceHeight * 0.1, 0.12, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+
+    drawHeart(context, faceCenterX - faceWidth * 0.52, headTopY + faceHeight * 0.14, sizeBase * 0.16, 'rgba(255, 175, 202, 0.95)');
+    drawHeart(context, faceCenterX + faceWidth * 0.52, headTopY + faceHeight * 0.18, sizeBase * 0.16, 'rgba(255, 175, 202, 0.95)');
+  }
+
+  if (sticker === 'pixel') {
+    drawPixelHeart(context, faceCenterX - faceWidth * 0.95, headTopY + faceHeight * 0.08, Math.max(4, sizeBase * 0.055), '#ff6f9d');
+    drawPixelHeart(context, faceCenterX + faceWidth * 0.55, headTopY - faceHeight * 0.06, Math.max(4, sizeBase * 0.048), '#ff9fc0');
+    drawSparkle(context, faceCenterX - faceWidth * 0.05, headTopY - faceHeight * 0.24, sizeBase * 0.13, 'rgba(160, 239, 255, 0.95)');
+    drawSparkle(context, faceCenterX + faceWidth * 0.46, headTopY + faceHeight * 0.02, sizeBase * 0.1, 'rgba(255, 240, 170, 0.95)');
+  }
+}
+
+function drawFrameOverlay(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  frame: EditorFrame,
+) {
+  context.save();
+
+  if (frame === 'postcard') {
+    const border = Math.round(Math.min(width, height) * 0.04);
+    context.fillStyle = '#f7f2ea';
+    context.fillRect(0, 0, width, border);
+    context.fillRect(0, 0, border, height);
+    context.fillRect(width - border, 0, border, height);
+    context.fillRect(0, height - border * 1.7, width, border * 1.7);
+  }
+
+  if (frame === 'cinema') {
+    const matte = Math.round(height * 0.1);
+    context.fillStyle = 'rgba(10, 10, 10, 0.94)';
+    context.fillRect(0, 0, width, matte);
+    context.fillRect(0, height - matte, width, matte);
+    context.strokeStyle = 'rgba(255,255,255,0.18)';
+    context.lineWidth = 2;
+    context.strokeRect(20, 20, width - 40, height - 40);
+  }
+
+  context.restore();
+}
+
+function drawStyledImageToCanvas({
+  context,
+  targetCanvas,
+  source,
+  sourceWidth,
+  sourceHeight,
+  aspectRatio,
+  filter,
+  frame,
+  sticker,
+  stickerAnchor,
+  mirror = false,
+}: {
+  context: CanvasRenderingContext2D;
+  targetCanvas: HTMLCanvasElement;
+  source: CanvasImageSource;
+  sourceWidth: number;
+  sourceHeight: number;
+  aspectRatio: AspectRatioOption;
+  filter: EditorFilter;
+  frame: EditorFrame;
+  sticker: EditorSticker;
+  stickerAnchor?: StickerAnchor | null;
+  mirror?: boolean;
+}) {
+  const { width, height } = ASPECT_RATIO_DIMENSIONS[aspectRatio];
+  const targetRatio = getAspectRatioValue(aspectRatio);
+  const sourceRatio = sourceWidth / sourceHeight;
+
+  let cropWidth = sourceWidth;
+  let cropHeight = sourceHeight;
+  let sourceX = 0;
+  let sourceY = 0;
+
+  if (sourceRatio > targetRatio) {
+    cropWidth = sourceHeight * targetRatio;
+    sourceX = (sourceWidth - cropWidth) / 2;
+  } else {
+    cropHeight = sourceWidth / targetRatio;
+    sourceY = (sourceHeight - cropHeight) / 2;
+  }
+
+  const mappedStickerAnchor = mapStickerAnchorToCroppedOutput({
+    anchor: stickerAnchor,
+    sourceWidth,
+    sourceHeight,
+    sourceX,
+    sourceY,
+    cropWidth,
+    cropHeight,
+  });
+
+  targetCanvas.width = width;
+  targetCanvas.height = height;
+  context.clearRect(0, 0, width, height);
+  context.save();
+  context.filter = getEditorFilterValue(filter);
+
+  if (mirror) {
+    context.translate(width, 0);
+    context.scale(-1, 1);
+  }
+
+  context.drawImage(
+    source,
+    sourceX,
+    sourceY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    width,
+    height,
+  );
+  context.restore();
+
+  drawFrameOverlay(context, width, height, frame);
+  drawStickerOverlay(context, width, height, sticker, mappedStickerAnchor);
+}
+
+async function renderEditedImageDataUrl({
+  source,
+  aspectRatio,
+  filter,
+  frame,
+  sticker,
+  stickerAnchor,
+}: {
+  source: string;
+  aspectRatio: AspectRatioOption;
+  filter: EditorFilter;
+  frame: EditorFrame;
+  sticker: EditorSticker;
+  stickerAnchor?: StickerAnchor | null;
+}) {
+  const image = await loadImageElement(source);
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('Canvas is unavailable for image editing.');
+  }
+
+  drawStyledImageToCanvas({
+    context,
+    targetCanvas: canvas,
+    source: image,
+    sourceWidth: image.width,
+    sourceHeight: image.height,
+    aspectRatio,
+    filter,
+    frame,
+    sticker,
+    stickerAnchor,
+  });
+
+  return canvas.toDataURL('image/jpeg', 0.94);
+}
+
 export default function App() {
-  const [stage, setStage] = useState<'home' | 'camera' | 'loading' | 'results'>('home');
+  const [stage, setStage] = useState<AppStage>('home');
   const [image, setImage] = useState<string | null>(null);
+  const [editorSourceImage, setEditorSourceImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<MoodAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
@@ -20,9 +482,18 @@ export default function App() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioOption>('3:4');
+  const [editorFilter, setEditorFilter] = useState<EditorFilter>('none');
+  const [editorSticker, setEditorSticker] = useState<EditorSticker>('none');
+  const [editorFrame, setEditorFrame] = useState<EditorFrame>('none');
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
+  const [stickerAnchor, setStickerAnchor] = useState<StickerAnchor>(getDefaultStickerAnchor());
+  const [isFaceTrackingActive, setIsFaceTrackingActive] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const editorCanvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const audioElementsRef = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -147,6 +618,22 @@ export default function App() {
   }, [stopCameraStream]);
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as HistoryEntry[];
+      if (Array.isArray(parsed)) {
+        setHistoryEntries(parsed);
+      }
+    } catch (historyError) {
+      console.error('History could not be loaded.', historyError);
+    }
+  }, []);
+
+  useEffect(() => {
     Object.entries(audioElementsRef.current).forEach(([previewId, audioElement]: [string, HTMLAudioElement | null]) => {
       if (!audioElement) {
         return;
@@ -164,13 +651,151 @@ export default function App() {
     });
   }, [activePreviewId]);
 
-  const startCamera = async () => {
+  useEffect(() => {
+    if (stage !== 'camera' || !videoElement || !isCameraReady) {
+      setIsFaceTrackingActive(false);
+      setStickerAnchor(getDefaultStickerAnchor());
+      return;
+    }
+
+    if (editorSticker === 'none') {
+      setIsFaceTrackingActive(false);
+      setStickerAnchor(getDefaultStickerAnchor());
+      return;
+    }
+
+    const FaceDetector = getFaceDetectorCtor();
+    if (!FaceDetector) {
+      setIsFaceTrackingActive(false);
+      setStickerAnchor(getDefaultStickerAnchor());
+      return;
+    }
+
+    let isCancelled = false;
+    let detectionInterval: number | null = null;
+    const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+
+    const detectFace = async () => {
+      if (
+        isCancelled ||
+        videoElement.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+        videoElement.videoWidth <= 0 ||
+        videoElement.videoHeight <= 0
+      ) {
+        return;
+      }
+
+      try {
+        const [face] = await detector.detect(videoElement);
+        if (isCancelled) {
+          return;
+        }
+
+        const box = face?.boundingBox;
+        if (!box || box.width <= 0 || box.height <= 0) {
+          setIsFaceTrackingActive(false);
+          setStickerAnchor(getDefaultStickerAnchor());
+          return;
+        }
+
+        setIsFaceTrackingActive(true);
+        setStickerAnchor({
+          centerX: clamp01((box.x + box.width / 2) / videoElement.videoWidth),
+          centerY: clamp01((box.y + box.height / 2) / videoElement.videoHeight),
+          width: clamp01(box.width / videoElement.videoWidth),
+          height: clamp01(box.height / videoElement.videoHeight),
+          tracked: true,
+        });
+      } catch (faceError) {
+        console.error('Face detection failed. Falling back to static sticker placement.', faceError);
+        if (!isCancelled) {
+          setIsFaceTrackingActive(false);
+          setStickerAnchor(getDefaultStickerAnchor());
+        }
+      }
+    };
+
+    void detectFace();
+    detectionInterval = window.setInterval(() => {
+      void detectFace();
+    }, 420);
+
+    return () => {
+      isCancelled = true;
+      if (detectionInterval !== null) {
+        window.clearInterval(detectionInterval);
+      }
+    };
+  }, [stage, videoElement, isCameraReady, editorSticker]);
+
+  useEffect(() => {
+    if (stage !== 'editor' || !editorSourceImage || !editorCanvasRef.current) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const renderPreview = async () => {
+      try {
+        const imageElement = await loadImageElement(editorSourceImage);
+        if (isCancelled || !editorCanvasRef.current) {
+          return;
+        }
+
+        const context = editorCanvasRef.current.getContext('2d');
+        if (!context) {
+          return;
+        }
+
+        drawStyledImageToCanvas({
+          context,
+          targetCanvas: editorCanvasRef.current,
+          source: imageElement,
+          sourceWidth: imageElement.width,
+          sourceHeight: imageElement.height,
+          aspectRatio: selectedAspectRatio,
+          filter: editorFilter,
+          frame: editorFrame,
+          sticker: editorSticker,
+          stickerAnchor,
+        });
+      } catch (previewError) {
+        console.error('Editor preview could not render.', previewError);
+        if (!isCancelled) {
+          setError('Image preview could not be prepared for editing.');
+        }
+      }
+    };
+
+    void renderPreview();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [stage, editorSourceImage, selectedAspectRatio, editorFilter, editorFrame, editorSticker, stickerAnchor]);
+
+  const openEditor = (dataUrl: string, options?: { preserveStyling?: boolean }) => {
+    setEditorSourceImage(dataUrl);
+    if (!options?.preserveStyling) {
+      setEditorFilter('none');
+      setEditorSticker('none');
+      setEditorFrame('none');
+      setStickerAnchor(getDefaultStickerAnchor());
+      setIsFaceTrackingActive(false);
+    }
+    setSaveState('idle');
+    setStage('editor');
+  };
+
+  const startCamera = async (ratio: AspectRatioOption = selectedAspectRatio) => {
+    setSelectedAspectRatio(ratio);
+    const dimensions = ASPECT_RATIO_DIMENSIONS[ratio];
     const preferredConstraints: MediaStreamConstraints = {
       video: {
         facingMode: 'user',
-        width: { ideal: 960 },
-        height: { ideal: 1280 },
-        aspectRatio: { ideal: 3 / 4 },
+        width: { ideal: dimensions.width },
+        height: { ideal: dimensions.height },
+        aspectRatio: { ideal: getAspectRatioValue(ratio) },
       },
       audio: false,
     };
@@ -202,11 +827,53 @@ export default function App() {
     }
   };
 
+  const saveCurrentResultToHistory = useCallback(() => {
+    if (!analysis || !image) {
+      return;
+    }
+
+    const entry: HistoryEntry = {
+      id: `${Date.now()}`,
+      image,
+      analysis,
+      createdAt: new Date().toISOString(),
+      aspectRatio: selectedAspectRatio,
+    };
+
+    setHistoryEntries((current) => {
+      const next = [entry, ...current.filter((item) => item.image !== image)].slice(0, HISTORY_LIMIT);
+      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    setSaveState('saved');
+  }, [analysis, image, selectedAspectRatio]);
+
+  const openHistoryEntry = (entry: HistoryEntry) => {
+    enrichmentRunRef.current += 1;
+    setActivePreviewId(null);
+    setImage(entry.image);
+    setAnalysis(entry.analysis);
+    setSelectedAspectRatio(entry.aspectRatio);
+    setSaveState('saved');
+    setStage('results');
+
+    const runId = enrichmentRunRef.current;
+    void enrichMusicRecommendations(entry.analysis.recommendations).then((recommendations) => {
+      if (enrichmentRunRef.current !== runId) {
+        return;
+      }
+
+      setAnalysis((current) => (current ? { ...current, recommendations } : current));
+    });
+  };
+
   const processImage = async (dataUrl: string) => {
     setImage(dataUrl);
+    setEditorSourceImage(null);
     setStage('loading');
     setError(null);
     setActivePreviewId(null);
+    setSaveState('idle');
     enrichmentRunRef.current += 1;
 
     try {
@@ -238,18 +905,23 @@ export default function App() {
       return;
     }
 
+    if (!isCameraReady) {
+      setError('Camera preview is not ready yet. Please wait a moment and try again.');
+      return;
+    }
+
     const context = canvasRef.current.getContext('2d');
     if (!context) {
       setError('Could not access the camera frame. Please try again.');
       return;
     }
 
-    const drawCroppedFrame = (
-      source: CanvasImageSource,
-      sourceWidth: number,
-      sourceHeight: number,
-    ) => {
-      const targetRatio = 3 / 4;
+      const drawCroppedFrame = (
+        source: CanvasImageSource,
+        sourceWidth: number,
+        sourceHeight: number,
+      ) => {
+      const targetRatio = getAspectRatioValue(selectedAspectRatio);
       const sourceRatio = sourceWidth / sourceHeight;
 
       let cropWidth = sourceWidth;
@@ -265,8 +937,18 @@ export default function App() {
         sourceY = (sourceHeight - cropHeight) / 2;
       }
 
-      canvasRef.current.width = 960;
-      canvasRef.current.height = 1280;
+      const mappedStickerAnchor = mapStickerAnchorToCroppedOutput({
+        anchor: stickerAnchor,
+        sourceWidth,
+        sourceHeight,
+        sourceX,
+        sourceY,
+        cropWidth,
+        cropHeight,
+      });
+
+      canvasRef.current.width = ASPECT_RATIO_DIMENSIONS[selectedAspectRatio].width;
+      canvasRef.current.height = ASPECT_RATIO_DIMENSIONS[selectedAspectRatio].height;
       context.save();
       context.translate(canvasRef.current.width, 0);
       context.scale(-1, 1);
@@ -282,6 +964,13 @@ export default function App() {
         canvasRef.current.height,
       );
       context.restore();
+      drawStickerOverlay(
+        context,
+        canvasRef.current.width,
+        canvasRef.current.height,
+        editorSticker,
+        mappedStickerAnchor,
+      );
     };
 
     const sourceWidth = videoRef.current.videoWidth;
@@ -311,7 +1000,7 @@ export default function App() {
 
     const dataUrl = canvasRef.current.toDataURL('image/jpeg');
     stopCameraStream();
-    await processImage(dataUrl);
+    openEditor(dataUrl, { preserveStyling: true });
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -322,9 +1011,31 @@ export default function App() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      processImage(reader.result as string);
+      openEditor(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const applyEditorChanges = async () => {
+    if (!editorSourceImage) {
+      return;
+    }
+
+    try {
+      const editedImage = await renderEditedImageDataUrl({
+        source: editorSourceImage,
+        aspectRatio: selectedAspectRatio,
+        filter: editorFilter,
+        frame: editorFrame,
+        sticker: editorSticker,
+        stickerAnchor,
+      });
+      await processImage(editedImage);
+    } catch (editorError) {
+      console.error('Editor output could not be generated.', editorError);
+      setError('The edited image could not be prepared for analysis.');
+      setStage('home');
+    }
   };
 
   const reset = () => {
@@ -333,8 +1044,15 @@ export default function App() {
     stopCameraStream();
     setStage('home');
     setImage(null);
+    setEditorSourceImage(null);
     setAnalysis(null);
     setError(null);
+    setEditorFilter('none');
+    setEditorSticker('none');
+    setEditorFrame('none');
+    setStickerAnchor(getDefaultStickerAnchor());
+    setIsFaceTrackingActive(false);
+    setSaveState('idle');
   };
 
   return (
@@ -403,7 +1121,9 @@ export default function App() {
               <section className="flex-1 p-8 md:p-16 flex flex-col items-center justify-center bg-white">
                 <div
                   className="w-full max-w-md aspect-[4/3] md:aspect-square border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-black transition-all duration-500 hover:bg-[#FAF9F6]"
-                  onClick={startCamera}
+                  onClick={() => {
+                    void startCamera();
+                  }}
                 >
                   <div className="w-16 h-16 rounded-full bg-[#1A1A1A]/5 flex items-center justify-center group-hover:bg-[#1A1A1A] transition-colors duration-500">
                     <Camera className="w-6 h-6 text-[#1A1A1A] group-hover:text-white" />
@@ -437,6 +1157,42 @@ export default function App() {
                     />
                   </div>
                 </div>
+
+                {historyEntries.length > 0 && (
+                  <div className="mt-12 w-full max-w-md">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-black/60" />
+                        <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-gray-400">History</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 italic font-serif">Saved locally</span>
+                    </div>
+                    <div className="space-y-3 max-h-72 overflow-y-auto panel-scrollbar pr-1">
+                      {historyEntries.map((entry) => (
+                        <button
+                          key={entry.id}
+                          onClick={() => openHistoryEntry(entry)}
+                          className="w-full rounded-2xl border border-[#1A1A1A]/8 bg-[#FAF9F6] p-3 text-left transition-colors hover:border-black/20"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={entry.image}
+                              alt={`${entry.analysis.mood} history item`}
+                              className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-black/40">
+                                {entry.analysis.sourceLabel}
+                              </p>
+                              <h4 className="font-serif text-lg leading-none mt-1">{entry.analysis.mood}</h4>
+                              <p className="text-[10px] text-gray-500 mt-1 truncate">{entry.analysis.vibe}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </section>
             </motion.div>
           )}
@@ -449,7 +1205,9 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 p-8 md:p-16 flex items-center justify-center"
             >
-              <div className="w-full max-w-md md:max-w-lg aspect-[3/4] rounded-[2.5rem] overflow-hidden relative border border-[#1A1A1A]/10 bg-black/5 shadow-2xl">
+              <div className={`w-full max-w-md md:max-w-3xl ${
+                selectedAspectRatio === '3:4' ? 'aspect-[3/4] md:aspect-[3/4] md:max-w-lg' : 'aspect-[16/9]'
+              } rounded-[2.5rem] overflow-hidden relative border border-[#1A1A1A]/10 bg-black/5 shadow-2xl`}>
                 <video
                   ref={setVideoRef}
                   autoPlay
@@ -460,6 +1218,47 @@ export default function App() {
                 <div className="absolute top-6 left-6 glass px-4 py-2 rounded-full text-[9px] font-bold uppercase tracking-[0.3em]">
                   {isCameraReady ? 'Live Camera Preview' : 'Connecting Camera'}
                 </div>
+                <div className="absolute top-6 right-6 flex flex-wrap justify-end gap-2 max-w-[72%]">
+                  {(['3:4', '16:9'] as AspectRatioOption[]).map((ratio) => (
+                    <button
+                      key={ratio}
+                      type="button"
+                      onClick={() => {
+                        void startCamera(ratio);
+                      }}
+                      className={`glass rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] ${
+                        selectedAspectRatio === ratio ? 'text-black' : 'text-black/45'
+                      }`}
+                    >
+                      {ratio}
+                    </button>
+                  ))}
+                </div>
+                <div className="absolute left-6 right-6 bottom-36 flex flex-wrap justify-center gap-2">
+                  {([
+                    ['none', 'Clean'],
+                    ['hearts', 'Hearts'],
+                    ['sparkles', 'Sparkles'],
+                    ['blush', 'Blush'],
+                    ['pixel', 'Pixel Pop'],
+                  ] as [EditorSticker, string][]).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEditorSticker(value)}
+                      className={`glass rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.18em] ${
+                        editorSticker === value ? 'text-black border-black/15' : 'text-black/45'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <StickerPreviewOverlay
+                  sticker={editorSticker}
+                  anchor={stickerAnchor}
+                  faceTrackingActive={isFaceTrackingActive}
+                />
                 {!isCameraReady && (
                   <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] flex items-center justify-center">
                     <div className="glass px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.3em]">
@@ -470,13 +1269,124 @@ export default function App() {
                 <div className="absolute inset-x-0 bottom-12 flex justify-center items-center">
                   <button
                     onClick={capturePhoto}
-                    className="w-24 h-24 rounded-full border-2 border-white/40 flex items-center justify-center p-2 group bg-white/10 backdrop-blur-md"
+                    disabled={!isCameraReady}
+                    className={`w-24 h-24 rounded-full border-2 border-white/40 flex items-center justify-center p-2 group bg-white/10 backdrop-blur-md transition-opacity ${
+                      isCameraReady ? 'opacity-100' : 'opacity-60 cursor-not-allowed'
+                    }`}
                   >
                     <div className="w-full h-full rounded-full bg-white group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
                 <canvas ref={canvasRef} className="hidden" />
               </div>
+            </motion.div>
+          )}
+
+          {stage === 'editor' && editorSourceImage && (
+            <motion.div
+              key="editor"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_24rem] gap-8 p-6 md:p-12 items-start"
+            >
+              <section className="bg-white rounded-[2rem] border border-[#1A1A1A]/8 p-5 md:p-8 shadow-sm">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-gray-400">Edit Before Analysis</p>
+                    <h2 className="font-serif text-3xl mt-2">Tune the frame.</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applyEditorChanges}
+                    className="rounded-full bg-black px-5 py-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white"
+                  >
+                    Analyze Edit
+                  </button>
+                </div>
+
+                <div className="rounded-[2rem] bg-[#f2eee7] p-4 md:p-6">
+                  <div className={`mx-auto overflow-hidden rounded-[1.75rem] shadow-xl bg-black/10 ${
+                    selectedAspectRatio === '3:4' ? 'max-w-md aspect-[3/4]' : 'max-w-4xl aspect-[16/9]'
+                  }`}>
+                    <canvas ref={editorCanvasRef} className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              </section>
+
+              <aside className="bg-white rounded-[2rem] border border-[#1A1A1A]/8 p-5 md:p-6 shadow-sm space-y-6 xl:max-h-[calc(100vh-13rem)] xl:overflow-y-auto panel-scrollbar">
+                <div className="space-y-5">
+                  <EditorOptionGroup icon={<SlidersHorizontal className="w-4 h-4" />} label="Ratio">
+                    {(['3:4', '16:9'] as AspectRatioOption[]).map((ratio) => (
+                      <React.Fragment key={ratio}>
+                        <EditorChip
+                          label={ratio}
+                          active={selectedAspectRatio === ratio}
+                          onClick={() => setSelectedAspectRatio(ratio)}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </EditorOptionGroup>
+
+                  <EditorOptionGroup icon={<Sparkles className="w-4 h-4" />} label="Filter">
+                    {([
+                      ['none', 'Natural'],
+                      ['warm', 'Warm'],
+                      ['mono', 'Mono'],
+                      ['dreamy', 'Dreamy'],
+                    ] as [EditorFilter, string][]).map(([value, label]) => (
+                      <React.Fragment key={value}>
+                        <EditorChip
+                          label={label}
+                          active={editorFilter === value}
+                          onClick={() => setEditorFilter(value)}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </EditorOptionGroup>
+
+                  <EditorOptionGroup icon={<Frame className="w-4 h-4" />} label="Frame">
+                    {([
+                      ['none', 'None'],
+                      ['postcard', 'Postcard'],
+                      ['cinema', 'Cinema'],
+                    ] as [EditorFrame, string][]).map(([value, label]) => (
+                      <React.Fragment key={value}>
+                        <EditorChip
+                          label={label}
+                          active={editorFrame === value}
+                          onClick={() => setEditorFrame(value)}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </EditorOptionGroup>
+
+                  <EditorOptionGroup icon={<Sparkles className="w-4 h-4" />} label="Sticker">
+                    {([
+                      ['none', 'Clean'],
+                      ['hearts', 'Love Love'],
+                      ['sparkles', 'Sparkles'],
+                      ['blush', 'Blush'],
+                      ['pixel', 'Pixel Pop'],
+                    ] as [EditorSticker, string][]).map(([value, label]) => (
+                      <React.Fragment key={value}>
+                        <EditorChip
+                          label={label}
+                          active={editorSticker === value}
+                          onClick={() => setEditorSticker(value)}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </EditorOptionGroup>
+                </div>
+
+                <div className="rounded-3xl border border-[#1A1A1A]/8 bg-[#FAF9F6] p-4 text-sm text-gray-500 leading-relaxed space-y-2">
+                  <p>Rasio mengatur crop final untuk camera dan upload. Filter, frame, dan sticker akan ikut masuk ke gambar yang dianalisis dan disimpan.</p>
+                  <p>
+                    Live sticker preview memakai pelacakan wajah ringan jika browser mendukungnya. Jika tidak, posisi sticker akan tetap fallback ke area kepala default.
+                  </p>
+                </div>
+              </aside>
             </motion.div>
           )}
 
@@ -565,6 +1475,18 @@ export default function App() {
                       <p className="text-[10px] text-gray-400 font-medium">Curated for your specific visual resonance</p>
                     </div>
                     <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={saveCurrentResultToHistory}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
+                          saveState === 'saved'
+                            ? 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700'
+                            : 'border-[#1A1A1A]/10 text-[#1A1A1A]/70 hover:border-black hover:text-black'
+                        }`}
+                      >
+                        <BookmarkPlus className="w-3.5 h-3.5" />
+                        <span>{saveState === 'saved' ? 'Saved' : 'Save to History'}</span>
+                      </button>
                       <div
                         className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
                         onClick={reset}
@@ -574,7 +1496,7 @@ export default function App() {
                     </div>
                   </header>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 min-h-0">
                     <EditorialGroup
                       title="Soundtrack"
                       items={analysis.recommendations.filter((item) => item.type === 'song')}
@@ -612,6 +1534,206 @@ export default function App() {
   );
 }
 
+type EditorOptionGroupProps = {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+};
+
+type EditorChipProps = {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+};
+
+function EditorOptionGroup({
+  icon,
+  label,
+  children,
+}: EditorOptionGroupProps) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.28em] font-bold text-gray-400">
+        <span className="text-black/55">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function EditorChip({
+  label,
+  active,
+  onClick,
+}: EditorChipProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
+        active
+          ? 'bg-black text-white'
+          : 'border border-[#1A1A1A]/10 text-[#1A1A1A]/65 hover:border-black hover:text-black'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function StickerPreviewOverlay({
+  sticker,
+  anchor,
+  faceTrackingActive,
+}: {
+  sticker: EditorSticker;
+  anchor: StickerAnchor;
+  faceTrackingActive: boolean;
+}) {
+  if (sticker === 'none') {
+    return null;
+  }
+
+  const left = `${anchor.centerX * 100}%`;
+  const top = `${anchor.centerY * 100}%`;
+  const faceWidth = `${Math.max(18, anchor.width * 100)}%`;
+  const faceHeight = `${Math.max(18, anchor.height * 100)}%`;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-6 bottom-24 glass rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-black/70">
+        {faceTrackingActive ? 'Face Lock' : 'Centered Overlay'}
+      </div>
+      <div
+        className="absolute"
+        style={{
+          left,
+          top,
+          width: faceWidth,
+          height: faceHeight,
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
+        {sticker === 'hearts' && <HeartsAroundHead />}
+        {sticker === 'sparkles' && <SparklesAroundHead />}
+        {sticker === 'blush' && <BlushAroundFace />}
+        {sticker === 'pixel' && <PixelPopAroundHead />}
+      </div>
+    </div>
+  );
+}
+
+function HeartsAroundHead() {
+  return (
+    <>
+      <HeartStickerCluster className="absolute -left-[40%] -top-[26%] w-[44%] animate-heart-float" />
+      <HeartStickerCluster className="absolute left-[8%] -top-[38%] w-[24%] animate-heart-float-soft" compact />
+      <HeartStickerCluster className="absolute right-[-32%] -top-[22%] w-[40%] animate-heart-float-delayed" mirrored />
+      <HeartStickerCluster className="absolute right-[8%] -top-[40%] w-[22%] animate-heart-float-soft" compact mirrored />
+      <div className="absolute left-[22%] -top-[10%] w-2 h-2 rounded-full bg-white/90 blur-[0.5px]" />
+      <div className="absolute right-[20%] -top-[2%] w-1.5 h-1.5 rounded-full bg-white/80 blur-[0.5px]" />
+    </>
+  );
+}
+
+function SparklesAroundHead() {
+  return (
+    <>
+      <SparkleGlyph className="absolute -left-[24%] -top-[4%] w-[24%] text-[#ffe28b] animate-sparkle-twirl" />
+      <SparkleGlyph className="absolute left-[14%] -top-[30%] w-[18%] text-[#fff3c4] animate-sparkle-twirl-delayed" />
+      <SparkleGlyph className="absolute left-[42%] -top-[36%] w-[22%] text-[#ffefad] animate-sparkle-twirl" />
+      <SparkleGlyph className="absolute right-[6%] -top-[18%] w-[16%] text-[#fff7de] animate-sparkle-twirl-delayed" />
+      <SparkleGlyph className="absolute -right-[18%] top-[4%] w-[26%] text-[#ffdd7e] animate-sparkle-twirl" />
+    </>
+  );
+}
+
+function BlushAroundFace() {
+  return (
+    <>
+      <div className="absolute left-[4%] top-[42%] h-[22%] w-[34%] rounded-full bg-[#ff8cb8]/30 blur-xl animate-blush-pulse" />
+      <div className="absolute right-[4%] top-[42%] h-[22%] w-[34%] rounded-full bg-[#ff8cb8]/30 blur-xl animate-blush-pulse-delayed" />
+      <HeartStickerCluster className="absolute -left-[20%] top-[4%] w-[20%] animate-heart-float-soft" compact />
+      <HeartStickerCluster className="absolute right-[-18%] top-[10%] w-[20%] animate-heart-float-soft" compact mirrored />
+    </>
+  );
+}
+
+function PixelPopAroundHead() {
+  return (
+    <>
+      <PixelHeartGlyph className="absolute -left-[26%] top-[0%] w-[26%] text-[#ff77a8] animate-pixel-pop" />
+      <PixelHeartGlyph className="absolute right-[-14%] -top-[14%] w-[20%] text-[#ffb2d0] animate-pixel-pop-delayed" />
+      <SparkleGlyph className="absolute left-[36%] -top-[28%] w-[14%] text-[#9fefff] animate-sparkle-twirl" />
+      <SparkleGlyph className="absolute right-[18%] top-[2%] w-[12%] text-[#ffe28b] animate-sparkle-twirl-delayed" />
+    </>
+  );
+}
+
+function HeartStickerCluster({
+  className,
+  mirrored = false,
+  compact = false,
+}: {
+  className?: string;
+  mirrored?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`${className ?? ''} ${mirrored ? '-scale-x-100' : ''}`.trim()}>
+      <div className={`relative aspect-[1.15] ${compact ? 'w-full' : 'w-full'}`}>
+        <HeartGlyph className={`absolute left-0 ${compact ? 'top-[26%] w-[70%]' : 'top-[18%] w-[72%]'} text-[#ff7ca9]`} />
+        <HeartGlyph className={`absolute ${compact ? 'left-[52%] top-[2%] w-[34%]' : 'left-[50%] top-[0%] w-[36%]'} text-[#ffc4da]`} />
+      </div>
+    </div>
+  );
+}
+
+function HeartGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={className}>
+      <path
+        d="M32 55.2c-.8 0-1.6-.3-2.2-.9L10.9 36.1C2.7 27.9 2.4 14.8 10 8.2c6.1-5.3 15.2-4.6 20.6 1.2L32 11l1.4-1.6c5.4-5.9 14.6-6.5 20.6-1.2 7.6 6.6 7.3 19.7-.9 27.9L34.2 54.3c-.6.6-1.4.9-2.2.9Z"
+        fill="currentColor"
+        stroke="rgba(255,255,255,0.95)"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SparkleGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={className}>
+      <path
+        d="M32 4L38.6 25.4L60 32L38.6 38.6L32 60L25.4 38.6L4 32L25.4 25.4L32 4Z"
+        fill="currentColor"
+        stroke="rgba(255,255,255,0.9)"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PixelHeartGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 56" aria-hidden="true" className={className}>
+      <path
+        d="M8 8H16V0H24V8H40V0H48V8H56V16H64V32H56V40H48V48H40V56H24V48H16V40H8V32H0V16H8V8Z"
+        fill="currentColor"
+        stroke="rgba(255,255,255,0.88)"
+        strokeWidth="3"
+        strokeLinejoin="miter"
+      />
+    </svg>
+  );
+}
+
 function EditorialGroup({
   title,
   items,
@@ -629,14 +1751,16 @@ function EditorialGroup({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-6 min-h-0"
     >
       <div className="flex justify-between items-center pb-2 border-b border-gray-100">
         <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">{title}</h3>
-        <span className="text-[10px] font-serif italic text-gray-400">Curated Match</span>
+        <span className="text-[10px] font-serif italic text-gray-400">
+          {items.length} Curated Match{items.length === 1 ? '' : 'es'}
+        </span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 md:max-h-[38rem] md:overflow-y-auto md:pr-2 panel-scrollbar">
         {items.map((item, index) =>
           <React.Fragment key={index}>
             {item.type === 'song'

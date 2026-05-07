@@ -30,6 +30,9 @@ const RECOMMENDATIONS: Record<string, Recommendation[]> = {
   Joyful: [
     { title: 'Golden', creator: 'Harry Styles', description: 'Open-hearted and sunlit, with forward momentum.', type: 'song' },
     { title: 'Electric Feel', creator: 'MGMT', description: 'Playful energy with vivid, colorful movement.', type: 'song' },
+    { title: 'Levitating', creator: 'Dua Lipa', description: 'Glossy uplift and bright momentum for a confident mood.', type: 'song' },
+    { title: 'On Top of the World', creator: 'Imagine Dragons', description: 'Triumphant lift with a breezy, celebratory pulse.', type: 'song' },
+    { title: 'Walking on a Dream', creator: 'Empire of the Sun', description: 'Dreamy color and buoyant motion with pop shimmer.', type: 'song' },
     { title: 'Amelie', creator: 'Jean-Pierre Jeunet', description: 'Whimsical warmth and visual optimism.', type: 'movie' },
     { title: 'Little Miss Sunshine', creator: 'Jonathan Dayton & Valerie Faris', description: 'Messy joy held together by tenderness.', type: 'movie' },
     { title: 'The House in the Cerulean Sea', creator: 'TJ Klune', description: 'Gentle, bright, and emotionally generous.', type: 'book' },
@@ -38,6 +41,9 @@ const RECOMMENDATIONS: Record<string, Recommendation[]> = {
   Reflective: [
     { title: 'Holocene', creator: 'Bon Iver', description: 'Quiet scale, memory, and inner space.', type: 'song' },
     { title: 'Motion Picture Soundtrack', creator: 'Radiohead', description: 'Soft melancholy with emotional distance.', type: 'song' },
+    { title: 'Roslyn', creator: 'Bon Iver & St. Vincent', description: 'Faint ache and drifting air with winter stillness.', type: 'song' },
+    { title: 'Cellophane', creator: 'FKA twigs', description: 'Bare emotional fragility with intimate cinematic tension.', type: 'song' },
+    { title: 'Riverside', creator: 'Agnes Obel', description: 'Measured piano calm and contemplative emotional weight.', type: 'song' },
     { title: 'Her', creator: 'Spike Jonze', description: 'Tender solitude and modern longing.', type: 'movie' },
     { title: 'Lost in Translation', creator: 'Sofia Coppola', description: 'Atmospheric stillness and emotional drift.', type: 'movie' },
     { title: 'Norwegian Wood', creator: 'Haruki Murakami', description: 'Nostalgic introspection with subdued ache.', type: 'book' },
@@ -46,6 +52,9 @@ const RECOMMENDATIONS: Record<string, Recommendation[]> = {
   Moody: [
     { title: 'Retrograde', creator: 'James Blake', description: 'Dark pressure with elegant emotional pull.', type: 'song' },
     { title: 'Nightcall', creator: 'Kavinsky', description: 'Nocturnal tension and cinematic cool.', type: 'song' },
+    { title: 'After Dark', creator: 'Mr.Kitty', description: 'Shadowy synth haze with romantic late-night tension.', type: 'song' },
+    { title: 'The Hills', creator: 'The Weeknd', description: 'Heavy atmosphere and controlled menace with glossy darkness.', type: 'song' },
+    { title: 'Do I Wanna Know?', creator: 'Arctic Monkeys', description: 'Slow-burn swagger and smoky emotional restraint.', type: 'song' },
     { title: 'Blade Runner 2049', creator: 'Denis Villeneuve', description: 'Brooding scale and neon isolation.', type: 'movie' },
     { title: 'Drive', creator: 'Nicolas Winding Refn', description: 'Stylized restraint with latent intensity.', type: 'movie' },
     { title: 'The Secret History', creator: 'Donna Tartt', description: 'Elegant darkness and psychological density.', type: 'book' },
@@ -54,6 +63,9 @@ const RECOMMENDATIONS: Record<string, Recommendation[]> = {
   Calm: [
     { title: 'Sunset Lover', creator: 'Petit Biscuit', description: 'Soft pulse and easy airiness.', type: 'song' },
     { title: 'Bloom', creator: 'The Paper Kites', description: 'Gentle warmth with spacious breathing room.', type: 'song' },
+    { title: 'Anchor', creator: 'Novo Amor', description: 'Featherlight melancholy with a slow, comforting drift.', type: 'song' },
+    { title: 'Mystery of Love', creator: 'Sufjan Stevens', description: 'Tender acoustic calm with soft emotional glow.', type: 'song' },
+    { title: 'Apocalypse', creator: 'Cigarettes After Sex', description: 'Dream-soft pacing and intimate stillness with low-light warmth.', type: 'song' },
     { title: 'Paterson', creator: 'Jim Jarmusch', description: 'Minimal, patient, and quietly attentive.', type: 'movie' },
     { title: 'My Neighbor Totoro', creator: 'Hayao Miyazaki', description: 'Pastoral calm and childlike comfort.', type: 'movie' },
     { title: 'A Psalm for the Wild-Built', creator: 'Becky Chambers', description: 'Restorative, kind, and unhurried.', type: 'book' },
@@ -62,6 +74,9 @@ const RECOMMENDATIONS: Record<string, Recommendation[]> = {
   Energetic: [
     { title: 'Dog Days Are Over', creator: 'Florence + The Machine', description: 'Kinetic release and emotional lift.', type: 'song' },
     { title: 'Tongue Tied', creator: 'Grouplove', description: 'Restless movement with bright edges.', type: 'song' },
+    { title: 'Shut Up and Dance', creator: 'WALK THE MOON', description: 'Instant propulsion and bright, extroverted rhythmic energy.', type: 'song' },
+    { title: 'Feel It Still', creator: 'Portugal. The Man', description: 'Springy groove and playful snap with modern swagger.', type: 'song' },
+    { title: 'Blinding Lights', creator: 'The Weeknd', description: 'Fast neon pulse and wide-open pop acceleration.', type: 'song' },
     { title: 'Spider-Man: Into the Spider-Verse', creator: 'Bob Persichetti, Peter Ramsey & Rodney Rothman', description: 'Bold rhythm, color, and momentum.', type: 'movie' },
     { title: 'Baby Driver', creator: 'Edgar Wright', description: 'Fast pacing and stylish propulsion.', type: 'movie' },
     { title: 'Tomorrow, and Tomorrow, and Tomorrow', creator: 'Gabrielle Zevin', description: 'Creative drive with emotional charge.', type: 'book' },
@@ -70,6 +85,9 @@ const RECOMMENDATIONS: Record<string, Recommendation[]> = {
   Fresh: [
     { title: 'Midnight City', creator: 'M83', description: 'Airy scale with sparkling motion.', type: 'song' },
     { title: 'Good Days', creator: 'SZA', description: 'Clean emotional release and lift.', type: 'song' },
+    { title: 'Sunflower', creator: 'Post Malone & Swae Lee', description: 'Easy brightness and clean melodic flow with soft bounce.', type: 'song' },
+    { title: 'New Light', creator: 'John Mayer', description: 'Light-footed charm with fresh, polished warmth.', type: 'song' },
+    { title: 'Every Teardrop Is a Waterfall', creator: 'Coldplay', description: 'Color-rich optimism and wide, skyward emotional movement.', type: 'song' },
     { title: 'The Secret Life of Walter Mitty', creator: 'Ben Stiller', description: 'Expansive, hopeful, and visually open.', type: 'movie' },
     { title: "Kiki's Delivery Service", creator: 'Hayao Miyazaki', description: 'Lightness, motion, and renewal.', type: 'movie' },
     { title: 'The Midnight Library', creator: 'Matt Haig', description: 'Reset energy with hopeful perspective.', type: 'book' },

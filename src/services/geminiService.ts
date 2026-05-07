@@ -3,6 +3,7 @@ import { MoodAnalysis } from '../types/analysis';
 import { analyzeMoodLocally } from './localMoodService';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const defaultModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
 type GeminiAnalysisPayload = Pick<
   MoodAnalysis,
@@ -48,11 +49,11 @@ export async function analyzeMood(base64Image: string): Promise<MoodAnalysis> {
     );
   }
 
-  const model = 'gemini-3.1-flash-lite';
+  const model = defaultModel;
 
   const prompt = `Analyze this image in terms of mood, emotional resonance, and visual atmosphere.
 Focus on the vibe and colors.
-Then, recommend 2 songs, 2 movies, and 2 books that align with this specific nuance.
+Then, recommend 5 songs, 2 movies, and 2 books that align with this specific nuance.
 
 Provide the response in JSON format.`;
 
