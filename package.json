@@ -8,6 +8,7 @@
     "dev:client": "vite --port=3000 --host=0.0.0.0",
     "dev:server": "node server/index.mjs",
     "build": "vite build",
+    "start": "node server/index.mjs",
     "preview": "vite preview",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit"

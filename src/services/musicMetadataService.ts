@@ -1,6 +1,6 @@
 import { Recommendation } from '../types/analysis';
 
-const MUSIC_API_BASE = (import.meta.env.VITE_MUSIC_API_BASE || 'http://localhost:8787').replace(/\/$/, '');
+const MUSIC_API_BASE = (import.meta.env.VITE_MUSIC_API_BASE || '').replace(/\/$/, '');
 
 type MusicLookupResponse = {
   spotifyUrl?: string;
