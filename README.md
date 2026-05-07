@@ -43,20 +43,27 @@ By default the app tries port `3000`. If that port is already in use, Vite will 
 - `npm run lint`: run TypeScript type-checking
 - `npm run clean`: remove `dist/` in a cross-platform way
 
-## Free Deploy
+## Vercel Deploy
 
-The repository is prepared for a single-service deployment on Render Free:
+The repository is prepared for Vercel Hobby deployment:
 
 1. Push the project to GitHub.
-2. In Render, create a new Blueprint or Web Service from the repo.
-3. Set `GEMINI_API_KEY` as an environment variable in Render.
+2. Import the repository into Vercel.
+3. In Vercel Project Settings, add `GEMINI_API_KEY` as an environment variable.
 4. Deploy.
 
-Included deployment files:
+Included Vercel deployment files:
 
-- `render.yaml`
-- `npm start` runs the Express server in `server/index.mjs`
-- the server automatically serves the built frontend from `dist/`
+- `api/health.ts`
+- `api/music/lookup.ts`
+- `vercel.json`
+
+Notes for Vercel:
+
+- The frontend is deployed as a Vite app.
+- Song metadata is served by Vercel Functions under `/api/...`.
+- `vercel.json` adds the SPA rewrite so direct links keep working.
+- Local development still uses the Express helper server in `server/index.mjs`.
 
 ## Notes
 
