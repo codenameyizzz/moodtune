@@ -3,7 +3,7 @@ import { MoodAnalysis } from '../types/analysis';
 import { analyzeMoodLocally } from './localMoodService';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-const defaultModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+const defaultModel = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite-preview';
 
 type GeminiAnalysisPayload = Pick<
   MoodAnalysis,

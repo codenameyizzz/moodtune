@@ -21,7 +21,7 @@ View the original AI Studio app: https://ai.studio/apps/fc8a7f0e-f2f4-4759-80a4-
 2. Create `.env.local` in the project root:
    ```env
    GEMINI_API_KEY=your_gemini_api_key
-   GEMINI_MODEL=gemini-2.5-flash-lite
+   GEMINI_MODEL=gemini-3.1-flash-lite-preview
    ```
 3. Start the development server:
    `npm run dev`
@@ -69,6 +69,6 @@ Notes for Vercel:
 ## Notes
 
 - The current implementation injects `GEMINI_API_KEY` into the frontend bundle through Vite config. That is acceptable for local testing, but not a production-safe design. For production, move Gemini calls behind a backend endpoint and keep the API key server-side.
-- The Gemini model is configurable through `GEMINI_MODEL`. The current default is `gemini-2.5-flash-lite` because it is the cleaner long-term choice and offers a larger free-tier daily request limit than the 2.0 Flash family.
+- The Gemini model is configurable through `GEMINI_MODEL`. The current default is `gemini-3.1-flash-lite-preview`, and local/deploy environments can still override it explicitly if needed.
 - Song recommendations now enrich themselves with free MusicBrainz metadata and Cover Art Archive artwork, then link out to Spotify and YouTube search pages.
 - Camera access requires browser permission.
