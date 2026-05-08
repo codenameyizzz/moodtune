@@ -10,7 +10,7 @@ import { analyzeMood } from './services/geminiService';
 import { MoodAnalysis, Recommendation } from './types/analysis';
 import { enrichMusicRecommendations, getRecommendationLinks } from './services/musicMetadataService';
 
-type AppStage = 'home' | 'camera' | 'editor' | 'loading' | 'results';
+type AppStage = 'home' | 'gallery' | 'camera' | 'editor' | 'loading' | 'results';
 type AspectRatioOption = '3:4' | '16:9';
 type EditorFilter = 'none' | 'warm' | 'mono' | 'dreamy';
 type EditorSticker = 'none' | 'hearts' | 'sparkles' | 'blush' | 'pixel';
@@ -1840,6 +1840,14 @@ export default function App() {
     setIsShareStylePickerOpen(false);
   };
 
+  const openGallery = () => {
+    stopCameraStream();
+    setActivePreviewId(null);
+    setError(null);
+    setIsShareStylePickerOpen(false);
+    setStage('gallery');
+  };
+
   const selectedShareStyleConfig = getShareCardStyle(selectedShareStyle);
 
   return (
@@ -1858,11 +1866,29 @@ export default function App() {
           <div className="flex items-center gap-2 cursor-pointer" onClick={reset}>
             <span className="font-serif text-2xl md:text-3xl font-bold tracking-tighter">MoodTune</span>
           </div>
-          <div className="hidden md:flex gap-10 text-[10px] uppercase tracking-[0.3em] font-semibold opacity-60">
-            <button onClick={reset} className="hover:opacity-100 transition-opacity">Capture</button>
-            <button className="hover:opacity-100 transition-opacity">Gallery</button>
-            <button className="hover:opacity-100 transition-opacity">Analysis</button>
+          <div className="hidden md:flex gap-10 text-[10px] uppercase tracking-[0.3em] font-semibold text-black/45">
+            <button onClick={reset} className={`transition-opacity hover:text-black ${stage === 'home' ? 'text-black' : ''}`}>Capture</button>
+            <button onClick={openGallery} className={`transition-opacity hover:text-black ${stage === 'gallery' ? 'text-black' : ''}`}>Gallery</button>
+            <button
+              onClick={() => {
+                if (analysis) {
+                  setStage('results');
+                }
+              }}
+              className={`transition-opacity hover:text-black ${stage === 'results' ? 'text-black' : ''}`}
+            >
+              Analysis
+            </button>
           </div>
+          {stage === 'home' && (
+            <button
+              type="button"
+              onClick={openGallery}
+              className="md:hidden rounded-full border border-[#1A1A1A]/10 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.18em] text-black/55"
+            >
+              Gallery
+            </button>
+          )}
           {stage !== 'home' && (
             <button
               onClick={reset}
@@ -1944,43 +1970,120 @@ export default function App() {
                     />
                   </div>
                 </div>
-
-                {historyEntries.length > 0 && (
-                  <div className="mt-10 md:mt-12 w-full max-w-md">
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-2">
-                        <History className="w-4 h-4 text-black/60" />
-                        <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-gray-400">History</span>
-                      </div>
-                      <span className="text-[9px] md:text-[10px] text-gray-400 italic font-serif">Saved locally</span>
-                    </div>
-                    <div className="space-y-3 max-h-64 md:max-h-72 overflow-y-auto panel-scrollbar pr-1">
-                      {historyEntries.map((entry) => (
-                        <button
-                          key={entry.id}
-                          onClick={() => openHistoryEntry(entry)}
-                          className="w-full rounded-2xl border border-[#1A1A1A]/8 bg-[#FAF9F6] p-3 text-left transition-colors hover:border-black/20"
-                        >
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={entry.image}
-                              alt={`${entry.analysis.mood} history item`}
-                              className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-black/40">
-                                {entry.analysis.sourceLabel}
-                              </p>
-                              <h4 className="font-serif text-lg leading-none mt-1">{entry.analysis.mood}</h4>
-                              <p className="text-[10px] text-gray-500 mt-1 truncate">{entry.analysis.vibe}</p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </section>
+            </motion.div>
+          )}
+
+          {stage === 'gallery' && (
+            <motion.div
+              key="gallery"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 bg-white p-4 md:p-12"
+            >
+              <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+                <header className="flex flex-col gap-5 rounded-[2rem] border border-[#1A1A1A]/10 bg-[#FAF9F6] p-6 md:flex-row md:items-end md:justify-between md:p-10">
+                  <div>
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-[9px] font-bold uppercase tracking-[0.24em] text-black/45">
+                      <History className="h-3.5 w-3.5 text-black/55" />
+                      Saved locally
+                    </div>
+                    <h1 className="font-serif text-4xl leading-none tracking-tighter md:text-6xl">
+                      Gallery
+                    </h1>
+                    <p className="mt-4 max-w-xl text-sm leading-relaxed text-gray-500">
+                      Semua hasil yang kamu simpan akan muncul di sini. Data ini tersimpan lokal di browser perangkat ini.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={reset}
+                    className="w-full rounded-full bg-black px-5 py-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white md:w-auto"
+                  >
+                    Capture New Mood
+                  </button>
+                </header>
+
+                {historyEntries.length === 0 ? (
+                  <section className="flex min-h-[24rem] flex-col items-center justify-center rounded-[2rem] border border-dashed border-[#1A1A1A]/15 bg-[#FAF9F6] p-8 text-center">
+                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-black/5">
+                      <History className="h-6 w-6 text-black/55" />
+                    </div>
+                    <h2 className="font-serif text-3xl leading-none">Gallery masih kosong.</h2>
+                    <p className="mt-3 max-w-md text-sm leading-relaxed text-gray-500">
+                      Setelah analisis selesai, klik `Save to History` agar hasilnya muncul di tab Gallery.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={reset}
+                      className="mt-6 rounded-full border border-black/10 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-black/65 hover:border-black hover:text-black"
+                    >
+                      Start Capture
+                    </button>
+                  </section>
+                ) : (
+                  <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                    {historyEntries.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() => openHistoryEntry(entry)}
+                        className="group overflow-hidden rounded-[2rem] border border-[#1A1A1A]/10 bg-[#FAF9F6] text-left shadow-sm transition-all hover:-translate-y-1 hover:border-black/20 hover:shadow-xl"
+                      >
+                        <div className="relative aspect-[4/5] overflow-hidden bg-black/5">
+                          <img
+                            src={entry.image}
+                            alt={`${entry.analysis.mood} gallery item`}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent" />
+                          <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-3">
+                            <span className="rounded-full bg-white/80 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-black/65 backdrop-blur-md">
+                              {entry.analysis.sourceLabel}
+                            </span>
+                            <span className="rounded-full bg-black/35 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white/80 backdrop-blur-md">
+                              {entry.aspectRatio}
+                            </span>
+                          </div>
+                          <div className="absolute bottom-4 left-4 right-4 text-white">
+                            <h3 className="font-serif text-3xl leading-none tracking-tight">
+                              {entry.analysis.mood}
+                            </h3>
+                            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/70">
+                              {entry.analysis.vibe}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="space-y-4 p-5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[9px] font-bold uppercase tracking-[0.24em] text-black/35">
+                              {new Date(entry.createdAt).toLocaleDateString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-black/50 group-hover:text-black">
+                              Open
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {entry.analysis.colors.slice(0, 4).map((color, index) => (
+                              <span
+                                key={`${entry.id}-${color}-${index}`}
+                                className="rounded-full bg-black/5 px-3 py-1 text-[8px] font-bold uppercase tracking-[0.16em] text-black/45"
+                              >
+                                {color}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </section>
+                )}
+              </div>
             </motion.div>
           )}
 
