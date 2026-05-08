@@ -15,6 +15,7 @@ type AspectRatioOption = '3:4' | '16:9';
 type EditorFilter = 'none' | 'warm' | 'mono' | 'dreamy';
 type EditorSticker = 'none' | 'hearts' | 'sparkles' | 'blush' | 'pixel';
 type EditorFrame = 'none' | 'postcard' | 'cinema';
+type ShareCardStyleId = 'neon-recap' | 'midnight-wave' | 'amber-tape' | 'mono-zine' | 'ruby-pop';
 type StickerAnchor = {
   centerX: number;
   centerY: number;
@@ -46,6 +47,242 @@ type HistoryEntry = {
 
 const HISTORY_STORAGE_KEY = 'moodtune-history-v1';
 const HISTORY_LIMIT = 5;
+
+type ShareCardStyleConfig = {
+  id: ShareCardStyleId;
+  label: string;
+  description: string;
+  topPill: string;
+  panelTitle: string;
+  background: [string, string, string];
+  ambientPrimary: string;
+  ambientSecondary: string;
+  backgroundText: string;
+  backgroundMuted: string;
+  backgroundPattern: string;
+  accent: string;
+  accentText: string;
+  accentLine: string;
+  photoFrame: string;
+  surface: string;
+  surfaceText: string;
+  surfaceMuted: string;
+  surfaceSubtle: string;
+  pillActive: string;
+  pillActiveText: string;
+  pillInactive: string;
+  pillInactiveText: string;
+  rowFeatured: string;
+  rowFeaturedText: string;
+  rowFeaturedMuted: string;
+  rowDefault: string;
+  rowDefaultText: string;
+  rowDefaultMuted: string;
+  badgeDefaultTop: string;
+  badgeDefaultBottom: string;
+  equalizerFeatured: string;
+  equalizerDefault: string;
+  footerText: string;
+  footerMuted: string;
+  border: string;
+};
+
+const SHARE_CARD_STYLES: ShareCardStyleConfig[] = [
+  {
+    id: 'neon-recap',
+    label: 'Neon Recap',
+    description: 'Dark recap dengan aksen lime ala music wrapped.',
+    topPill: 'TOP 5 SONGS',
+    panelTitle: 'Your soundtrack',
+    background: ['#171914', '#10120f', '#070806'],
+    ambientPrimary: 'rgba(198, 255, 80, 0.42)',
+    ambientSecondary: 'rgba(246, 232, 206, 0.22)',
+    backgroundText: '#f5f0e7',
+    backgroundMuted: 'rgba(245, 240, 231, 0.74)',
+    backgroundPattern: 'rgba(255,255,255,0.035)',
+    accent: '#c6ff50',
+    accentText: '#11130f',
+    accentLine: 'rgba(198, 255, 80, 0.34)',
+    photoFrame: 'rgba(245, 240, 231, 0.12)',
+    surface: 'rgba(245, 240, 231, 0.95)',
+    surfaceText: '#11130f',
+    surfaceMuted: 'rgba(17, 19, 15, 0.62)',
+    surfaceSubtle: 'rgba(17, 19, 15, 0.18)',
+    pillActive: '#11130f',
+    pillActiveText: '#f5f0e7',
+    pillInactive: 'rgba(17, 19, 15, 0.08)',
+    pillInactiveText: 'rgba(17, 19, 15, 0.7)',
+    rowFeatured: '#11130f',
+    rowFeaturedText: '#f5f0e7',
+    rowFeaturedMuted: 'rgba(245, 240, 231, 0.66)',
+    rowDefault: 'rgba(17, 19, 15, 0.075)',
+    rowDefaultText: '#11130f',
+    rowDefaultMuted: 'rgba(17, 19, 15, 0.58)',
+    badgeDefaultTop: 'rgba(245, 240, 231, 0.98)',
+    badgeDefaultBottom: 'rgba(17, 19, 15, 0.09)',
+    equalizerFeatured: 'rgba(198, 255, 80, 0.92)',
+    equalizerDefault: 'rgba(17, 19, 15, 0.22)',
+    footerText: 'rgba(245, 240, 231, 0.72)',
+    footerMuted: 'rgba(245, 240, 231, 0.42)',
+    border: 'rgba(245, 240, 231, 0.12)',
+  },
+  {
+    id: 'midnight-wave',
+    label: 'Midnight Wave',
+    description: 'Navy cinematic dengan highlight biru dingin.',
+    topPill: 'NIGHT MIX',
+    panelTitle: 'Night rotation',
+    background: ['#121a2a', '#0b1020', '#05070e'],
+    ambientPrimary: 'rgba(124, 199, 255, 0.4)',
+    ambientSecondary: 'rgba(148, 163, 184, 0.22)',
+    backgroundText: '#eef6ff',
+    backgroundMuted: 'rgba(238, 246, 255, 0.72)',
+    backgroundPattern: 'rgba(238, 246, 255, 0.04)',
+    accent: '#7cc7ff',
+    accentText: '#07111f',
+    accentLine: 'rgba(124, 199, 255, 0.36)',
+    photoFrame: 'rgba(238, 246, 255, 0.12)',
+    surface: 'rgba(238, 244, 251, 0.96)',
+    surfaceText: '#0d1524',
+    surfaceMuted: 'rgba(13, 21, 36, 0.62)',
+    surfaceSubtle: 'rgba(13, 21, 36, 0.18)',
+    pillActive: '#0d1524',
+    pillActiveText: '#eef6ff',
+    pillInactive: 'rgba(13, 21, 36, 0.08)',
+    pillInactiveText: 'rgba(13, 21, 36, 0.7)',
+    rowFeatured: '#0d1524',
+    rowFeaturedText: '#eef6ff',
+    rowFeaturedMuted: 'rgba(238, 246, 255, 0.66)',
+    rowDefault: 'rgba(13, 21, 36, 0.075)',
+    rowDefaultText: '#0d1524',
+    rowDefaultMuted: 'rgba(13, 21, 36, 0.58)',
+    badgeDefaultTop: 'rgba(238, 244, 251, 0.98)',
+    badgeDefaultBottom: 'rgba(13, 21, 36, 0.1)',
+    equalizerFeatured: 'rgba(124, 199, 255, 0.92)',
+    equalizerDefault: 'rgba(13, 21, 36, 0.24)',
+    footerText: 'rgba(238, 246, 255, 0.72)',
+    footerMuted: 'rgba(238, 246, 255, 0.42)',
+    border: 'rgba(238, 246, 255, 0.13)',
+  },
+  {
+    id: 'amber-tape',
+    label: 'Amber Tape',
+    description: 'Warm vintage seperti mixtape sunset.',
+    topPill: 'GOLDEN MIX',
+    panelTitle: 'Golden mix',
+    background: ['#24150f', '#3a2016', '#120b08'],
+    ambientPrimary: 'rgba(255, 184, 107, 0.42)',
+    ambientSecondary: 'rgba(255, 241, 214, 0.2)',
+    backgroundText: '#fff1df',
+    backgroundMuted: 'rgba(255, 241, 223, 0.72)',
+    backgroundPattern: 'rgba(255, 241, 223, 0.04)',
+    accent: '#ffb86b',
+    accentText: '#24150f',
+    accentLine: 'rgba(255, 184, 107, 0.36)',
+    photoFrame: 'rgba(255, 241, 223, 0.12)',
+    surface: 'rgba(255, 244, 229, 0.96)',
+    surfaceText: '#24150f',
+    surfaceMuted: 'rgba(36, 21, 15, 0.62)',
+    surfaceSubtle: 'rgba(36, 21, 15, 0.18)',
+    pillActive: '#24150f',
+    pillActiveText: '#fff1df',
+    pillInactive: 'rgba(36, 21, 15, 0.08)',
+    pillInactiveText: 'rgba(36, 21, 15, 0.72)',
+    rowFeatured: '#24150f',
+    rowFeaturedText: '#fff1df',
+    rowFeaturedMuted: 'rgba(255, 241, 223, 0.66)',
+    rowDefault: 'rgba(36, 21, 15, 0.075)',
+    rowDefaultText: '#24150f',
+    rowDefaultMuted: 'rgba(36, 21, 15, 0.58)',
+    badgeDefaultTop: 'rgba(255, 244, 229, 0.98)',
+    badgeDefaultBottom: 'rgba(36, 21, 15, 0.1)',
+    equalizerFeatured: 'rgba(255, 184, 107, 0.92)',
+    equalizerDefault: 'rgba(36, 21, 15, 0.24)',
+    footerText: 'rgba(255, 241, 223, 0.72)',
+    footerMuted: 'rgba(255, 241, 223, 0.42)',
+    border: 'rgba(255, 241, 223, 0.13)',
+  },
+  {
+    id: 'mono-zine',
+    label: 'Mono Zine',
+    description: 'Editorial hitam-putih seperti poster magazine.',
+    topPill: 'MOOD INDEX',
+    panelTitle: 'Mood index',
+    background: ['#f4f1ea', '#ddd8ce', '#c8c1b3'],
+    ambientPrimary: 'rgba(255, 255, 255, 0.45)',
+    ambientSecondary: 'rgba(17, 19, 15, 0.12)',
+    backgroundText: '#11130f',
+    backgroundMuted: 'rgba(17, 19, 15, 0.68)',
+    backgroundPattern: 'rgba(17, 19, 15, 0.055)',
+    accent: '#11130f',
+    accentText: '#f4f1ea',
+    accentLine: 'rgba(17, 19, 15, 0.32)',
+    photoFrame: 'rgba(17, 19, 15, 0.12)',
+    surface: 'rgba(17, 19, 15, 0.96)',
+    surfaceText: '#f4f1ea',
+    surfaceMuted: 'rgba(244, 241, 234, 0.62)',
+    surfaceSubtle: 'rgba(244, 241, 234, 0.2)',
+    pillActive: '#f4f1ea',
+    pillActiveText: '#11130f',
+    pillInactive: 'rgba(244, 241, 234, 0.12)',
+    pillInactiveText: 'rgba(244, 241, 234, 0.74)',
+    rowFeatured: '#f4f1ea',
+    rowFeaturedText: '#11130f',
+    rowFeaturedMuted: 'rgba(17, 19, 15, 0.58)',
+    rowDefault: 'rgba(244, 241, 234, 0.1)',
+    rowDefaultText: '#f4f1ea',
+    rowDefaultMuted: 'rgba(244, 241, 234, 0.58)',
+    badgeDefaultTop: 'rgba(244, 241, 234, 0.95)',
+    badgeDefaultBottom: 'rgba(244, 241, 234, 0.18)',
+    equalizerFeatured: 'rgba(17, 19, 15, 0.88)',
+    equalizerDefault: 'rgba(244, 241, 234, 0.34)',
+    footerText: 'rgba(17, 19, 15, 0.72)',
+    footerMuted: 'rgba(17, 19, 15, 0.48)',
+    border: 'rgba(17, 19, 15, 0.16)',
+  },
+  {
+    id: 'ruby-pop',
+    label: 'Ruby Pop',
+    description: 'Pop recap dengan aksen merah muda yang tetap clean.',
+    topPill: 'STORY MIX',
+    panelTitle: 'Story mix',
+    background: ['#fff7f0', '#f5ded8', '#e6c4bf'],
+    ambientPrimary: 'rgba(255, 77, 109, 0.34)',
+    ambientSecondary: 'rgba(255, 255, 255, 0.52)',
+    backgroundText: '#241116',
+    backgroundMuted: 'rgba(36, 17, 22, 0.66)',
+    backgroundPattern: 'rgba(36, 17, 22, 0.05)',
+    accent: '#ff4d6d',
+    accentText: '#fff7f0',
+    accentLine: 'rgba(255, 77, 109, 0.34)',
+    photoFrame: 'rgba(36, 17, 22, 0.1)',
+    surface: 'rgba(36, 17, 22, 0.95)',
+    surfaceText: '#fff7f0',
+    surfaceMuted: 'rgba(255, 247, 240, 0.64)',
+    surfaceSubtle: 'rgba(255, 247, 240, 0.2)',
+    pillActive: '#fff7f0',
+    pillActiveText: '#241116',
+    pillInactive: 'rgba(255, 247, 240, 0.12)',
+    pillInactiveText: 'rgba(255, 247, 240, 0.76)',
+    rowFeatured: '#fff7f0',
+    rowFeaturedText: '#241116',
+    rowFeaturedMuted: 'rgba(36, 17, 22, 0.58)',
+    rowDefault: 'rgba(255, 247, 240, 0.1)',
+    rowDefaultText: '#fff7f0',
+    rowDefaultMuted: 'rgba(255, 247, 240, 0.6)',
+    badgeDefaultTop: 'rgba(255, 247, 240, 0.95)',
+    badgeDefaultBottom: 'rgba(255, 247, 240, 0.18)',
+    equalizerFeatured: 'rgba(255, 77, 109, 0.9)',
+    equalizerDefault: 'rgba(255, 247, 240, 0.34)',
+    footerText: 'rgba(36, 17, 22, 0.72)',
+    footerMuted: 'rgba(36, 17, 22, 0.48)',
+    border: 'rgba(36, 17, 22, 0.14)',
+  },
+];
+
+function getShareCardStyle(styleId: ShareCardStyleId) {
+  return SHARE_CARD_STYLES.find((style) => style.id === styleId) ?? SHARE_CARD_STYLES[0];
+}
 
 const ASPECT_RATIO_DIMENSIONS: Record<AspectRatioOption, { width: number; height: number }> = {
   '3:4': { width: 960, height: 1280 },
@@ -174,9 +411,11 @@ function triggerFileDownload(blob: Blob, filename: string) {
 async function buildInstagramShareCard({
   imageSource,
   analysis,
+  styleId = 'neon-recap',
 }: {
   imageSource: string;
   analysis: MoodAnalysis;
+  styleId?: ShareCardStyleId;
 }) {
   const image = await loadImageElement(imageSource);
   const canvas = document.createElement('canvas');
@@ -192,45 +431,81 @@ async function buildInstagramShareCard({
   canvas.height = height;
   await document.fonts?.ready;
 
+  const style = getShareCardStyle(styleId);
   const backgroundGradient = context.createLinearGradient(0, 0, width, height);
-  backgroundGradient.addColorStop(0, '#fbf8f1');
-  backgroundGradient.addColorStop(0.5, '#f1eadf');
-  backgroundGradient.addColorStop(1, '#e6dac9');
+  backgroundGradient.addColorStop(0, style.background[0]);
+  backgroundGradient.addColorStop(0.48, style.background[1]);
+  backgroundGradient.addColorStop(1, style.background[2]);
   context.fillStyle = backgroundGradient;
   context.fillRect(0, 0, width, height);
 
   context.save();
-  const softLight = context.createRadialGradient(150, 90, 20, 150, 90, 440);
-  softLight.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+  const softLight = context.createRadialGradient(900, 110, 20, 900, 110, 560);
+  softLight.addColorStop(0, style.ambientPrimary);
   softLight.addColorStop(1, 'rgba(255, 255, 255, 0)');
   context.fillStyle = softLight;
   context.fillRect(0, 0, width, height);
 
-  const champagneLight = context.createRadialGradient(930, 240, 30, 930, 240, 420);
-  champagneLight.addColorStop(0, 'rgba(225, 198, 151, 0.34)');
-  champagneLight.addColorStop(1, 'rgba(225, 198, 151, 0)');
+  const champagneLight = context.createRadialGradient(110, 1780, 20, 110, 1780, 520);
+  champagneLight.addColorStop(0, style.ambientSecondary);
+  champagneLight.addColorStop(1, 'rgba(255, 255, 255, 0)');
   context.fillStyle = champagneLight;
   context.fillRect(0, 0, width, height);
   context.restore();
 
   context.save();
-  context.globalAlpha = 0.22;
-  context.strokeStyle = 'rgba(255,255,255,0.65)';
-  context.lineWidth = 2;
+  context.translate(1010, 340);
+  context.rotate(-Math.PI / 2);
+  context.fillStyle = style.backgroundPattern;
+  context.font = '700 164px "Inter", Arial, sans-serif';
+  context.fillText('RECAP', 0, 0);
+  context.restore();
+
+  context.save();
+  context.globalAlpha = 0.28;
+  context.strokeStyle = style.accentLine;
+  context.lineWidth = 3;
   context.beginPath();
-  context.moveTo(74, 144);
-  context.bezierCurveTo(280, 44, 800, 38, 1010, 200);
+  context.moveTo(58, 258);
+  context.bezierCurveTo(290, 96, 752, 92, 1030, 260);
   context.stroke();
   context.beginPath();
-  context.moveTo(60, 1700);
-  context.bezierCurveTo(320, 1610, 740, 1600, 1020, 1760);
+  context.moveTo(44, 1716);
+  context.bezierCurveTo(302, 1594, 770, 1584, 1042, 1746);
   context.stroke();
   context.restore();
 
-  const photoX = 86;
-  const photoY = 96;
+  context.fillStyle = style.backgroundText;
+  context.font = '700 17px "Inter", Arial, sans-serif';
+  context.fillText('MOODTUNE RECAP', 84, 104);
+  context.fillStyle = style.backgroundMuted;
+  context.font = '600 14px "Outfit", Arial, sans-serif';
+  context.fillText('A STORY CARD FOR THIS FRAME', 84, 132);
+
+  context.save();
+  context.fillStyle = style.accent;
+  roundRect(context, 810, 70, 186, 54, 27);
+  context.fill();
+  context.fillStyle = style.accentText;
+  context.font = '700 17px "Inter", Arial, sans-serif';
+  context.fillText(fitText(context, style.topPill, 130), 838, 105);
+  context.restore();
+
+  context.fillStyle = style.backgroundText;
+  context.font = '700 78px "Playfair Display", Georgia, serif';
+  context.fillText(fitText(context, analysis.mood, 810), 80, 226);
+
+  context.fillStyle = style.backgroundMuted;
+  context.font = '500 25px "Outfit", Arial, sans-serif';
+  const vibeLines = wrapText(context, analysis.vibe, 876);
+  vibeLines.slice(0, 2).forEach((line, index) => {
+    context.fillText(line, 84, 276 + index * 34);
+  });
+
+  const photoX = 74;
+  const photoY = 344;
   const photoWidth = width - photoX * 2;
-  const photoHeight = 670;
+  const photoHeight = 572;
   const imageRatio = image.width / image.height;
   const targetRatio = photoWidth / photoHeight;
 
@@ -249,11 +524,11 @@ async function buildInstagramShareCard({
 
   const radius = 44;
   context.save();
-  context.fillStyle = 'rgba(255,255,255,0.92)';
-  context.shadowColor = 'rgba(50, 34, 15, 0.14)';
-  context.shadowBlur = 40;
-  context.shadowOffsetY = 18;
-  roundRect(context, photoX - 10, photoY - 10, photoWidth + 20, photoHeight + 20, radius + 14);
+  context.fillStyle = style.photoFrame;
+  context.shadowColor = 'rgba(0, 0, 0, 0.38)';
+  context.shadowBlur = 38;
+  context.shadowOffsetY = 24;
+  roundRect(context, photoX - 12, photoY - 12, photoWidth + 24, photoHeight + 24, radius + 16);
   context.fill();
   context.restore();
 
@@ -262,9 +537,16 @@ async function buildInstagramShareCard({
   context.clip();
   context.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, photoX, photoY, photoWidth, photoHeight);
 
+  const photoShade = context.createLinearGradient(0, photoY, 0, photoY + photoHeight);
+  photoShade.addColorStop(0, 'rgba(0,0,0,0.02)');
+  photoShade.addColorStop(0.62, 'rgba(0,0,0,0)');
+  photoShade.addColorStop(1, 'rgba(0,0,0,0.58)');
+  context.fillStyle = photoShade;
+  context.fillRect(photoX, photoY, photoWidth, photoHeight);
+
   const photoGlare = context.createLinearGradient(photoX, photoY, photoX + photoWidth * 0.72, photoY + photoHeight * 0.62);
-  photoGlare.addColorStop(0, 'rgba(255,255,255,0.34)');
-  photoGlare.addColorStop(0.3, 'rgba(255,255,255,0.12)');
+  photoGlare.addColorStop(0, 'rgba(255,255,255,0.28)');
+  photoGlare.addColorStop(0.3, 'rgba(255,255,255,0.1)');
   photoGlare.addColorStop(0.55, 'rgba(255,255,255,0.02)');
   photoGlare.addColorStop(1, 'rgba(255,255,255,0)');
   context.fillStyle = photoGlare;
@@ -275,141 +557,176 @@ async function buildInstagramShareCard({
   context.lineTo(photoX + 10, photoY + photoHeight - 40);
   context.closePath();
   context.fill();
+
+  context.fillStyle = 'rgba(245, 240, 231, 0.86)';
+  context.font = '700 18px "Inter", Arial, sans-serif';
+  context.fillText('VISUAL MOOD SNAPSHOT', photoX + 38, photoY + photoHeight - 72);
+  context.fillStyle = 'rgba(245, 240, 231, 0.62)';
+  context.font = '500 18px "Outfit", Arial, sans-serif';
+  context.fillText(fitText(context, analysis.sourceLabel, 470), photoX + 38, photoY + photoHeight - 42);
   context.restore();
 
-  context.save();
-  context.fillStyle = 'rgba(255,255,255,0.88)';
-  roundRect(context, 118, 132, 292, 54, 27);
-  context.fill();
-  context.restore();
-  context.fillStyle = '#1a1a1a';
-  context.font = '700 19px "Inter", sans-serif';
-  context.fillText('MOODTUNE CURATION', 144, 167);
-
-  context.fillStyle = '#1a1a1a';
-  context.font = '700 82px "Playfair Display", Georgia, serif';
-  context.fillText(fitText(context, analysis.mood, 880), 90, 852);
-
-  context.fillStyle = 'rgba(26, 26, 26, 0.72)';
-  context.font = '500 27px "Inter", Arial, sans-serif';
-  const vibeLines = wrapText(context, `"${analysis.vibe}"`, 890);
-  vibeLines.slice(0, 4).forEach((line, index) => {
-    context.fillText(line, 94, 924 + index * 38);
-  });
-
-  const panelX = 76;
-  const panelY = 1126;
-  const panelWidth = 928;
-  const panelHeight = 682;
+  const panelX = 64;
+  const panelY = 970;
+  const panelWidth = 952;
+  const panelHeight = 794;
 
   context.save();
-  context.fillStyle = 'rgba(255,255,255,0.95)';
-  context.shadowColor = 'rgba(26, 26, 26, 0.09)';
-  context.shadowBlur = 26;
-  context.shadowOffsetY = 12;
-  roundRect(context, panelX, panelY, panelWidth, panelHeight, 42);
+  context.fillStyle = style.surface;
+  context.shadowColor = 'rgba(0, 0, 0, 0.28)';
+  context.shadowBlur = 34;
+  context.shadowOffsetY = 18;
+  roundRect(context, panelX, panelY, panelWidth, panelHeight, 50);
   context.fill();
   context.restore();
 
   context.save();
-  roundRect(context, panelX, panelY, panelWidth, panelHeight, 42);
+  roundRect(context, panelX, panelY, panelWidth, panelHeight, 50);
   context.clip();
-  const panelGlare = context.createLinearGradient(panelX, panelY, panelX + panelWidth, panelY + 480);
-  panelGlare.addColorStop(0, 'rgba(255,255,255,0.55)');
-  panelGlare.addColorStop(0.26, 'rgba(255,255,255,0.18)');
-  panelGlare.addColorStop(0.42, 'rgba(255,255,255,0.05)');
+  const panelGlare = context.createLinearGradient(panelX, panelY, panelX + panelWidth, panelY + 520);
+  panelGlare.addColorStop(0, 'rgba(255,255,255,0.82)');
+  panelGlare.addColorStop(0.23, 'rgba(255,255,255,0.24)');
+  panelGlare.addColorStop(0.42, 'rgba(255,255,255,0.06)');
   panelGlare.addColorStop(1, 'rgba(255,255,255,0)');
   context.fillStyle = panelGlare;
   context.beginPath();
   context.moveTo(panelX, panelY);
-  context.lineTo(panelX + 486, panelY);
-  context.lineTo(panelX + 278, panelY + panelHeight);
+  context.lineTo(panelX + 520, panelY);
+  context.lineTo(panelX + 300, panelY + panelHeight);
   context.lineTo(panelX, panelY + panelHeight);
   context.closePath();
   context.fill();
+
+  context.fillStyle = style.accent;
+  context.beginPath();
+  context.arc(panelX + panelWidth - 76, panelY + 78, 46, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = style.surfaceSubtle;
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(panelX + panelWidth - 76, panelY + 78, 30, 0, Math.PI * 2);
+  context.stroke();
   context.restore();
 
-  context.fillStyle = 'rgba(26, 26, 26, 0.42)';
-  context.font = '700 17px "Inter", Arial, sans-serif';
-  context.fillText('PALETTE', 116, 1190);
-  context.fillText('SOUNDTRACK', 116, 1320);
-  context.fillStyle = 'rgba(26, 26, 26, 0.34)';
-  context.font = '600 14px "Outfit", Arial, sans-serif';
-  context.fillText('5 TRACKS FOR THIS FRAME', 690, 1320);
+  context.fillStyle = style.surfaceText;
+  context.font = '700 55px "Inter", Arial, sans-serif';
+  context.fillText(fitText(context, style.panelTitle, 640), panelX + 40, panelY + 82);
+  context.fillStyle = style.surfaceMuted;
+  context.font = '600 19px "Outfit", Arial, sans-serif';
+  context.fillText('Top 5 songs matched to this image mood', panelX + 44, panelY + 124);
 
   analysis.colors.slice(0, 4).forEach((color, index) => {
-    const pillX = 116 + index * 212;
-    context.fillStyle = 'rgba(26, 26, 26, 0.055)';
-    roundRect(context, pillX, 1218, 188, 52, 26);
+    const pillX = panelX + 42 + index * 208;
+    context.fillStyle = index === 0 ? style.pillActive : style.pillInactive;
+    roundRect(context, pillX, panelY + 154, 184, 46, 23);
     context.fill();
-    context.fillStyle = 'rgba(26, 26, 26, 0.76)';
-    context.font = '600 18px "Inter", Arial, sans-serif';
-    context.fillText(fitText(context, color.toUpperCase(), 150), pillX + 18, 1252);
+    context.fillStyle = index === 0 ? style.pillActiveText : style.pillInactiveText;
+    context.font = '700 15px "Inter", Arial, sans-serif';
+    context.fillText(fitText(context, color.toUpperCase(), 146), pillX + 18, panelY + 184);
   });
 
   const songs = analysis.recommendations.filter((item) => item.type === 'song').slice(0, 5);
-  songs.forEach((song, index) => {
-    const rowTop = 1368 + index * 84;
-    const rowCenterY = rowTop + 34;
+  if (songs.length === 0) {
+    context.fillStyle = style.surfaceMuted;
+    context.font = '600 24px "Outfit", Arial, sans-serif';
+    context.fillText('No soundtrack recommendations available.', panelX + 42, panelY + 312);
+  }
 
-    context.fillStyle = index % 2 === 0 ? 'rgba(26, 26, 26, 0.045)' : 'rgba(255, 255, 255, 0.54)';
-    roundRect(context, 108, rowTop, 864, 68, 24);
+  songs.forEach((song, index) => {
+    const rowTop = panelY + 234 + index * 104;
+    const rowHeight = 88;
+    const rowCenterY = rowTop + rowHeight / 2;
+
+    context.fillStyle = index === 0 ? style.rowFeatured : style.rowDefault;
+    roundRect(context, panelX + 34, rowTop, panelWidth - 68, rowHeight, 28);
     context.fill();
 
     context.save();
-    const badgeGradient = context.createLinearGradient(0, rowTop, 0, rowTop + 46);
-    badgeGradient.addColorStop(0, 'rgba(255,255,255,0.96)');
-    badgeGradient.addColorStop(1, 'rgba(26, 26, 26, 0.07)');
+    const badgeGradient = context.createLinearGradient(0, rowTop, 0, rowTop + rowHeight);
+    badgeGradient.addColorStop(0, index === 0 ? style.accent : style.badgeDefaultTop);
+    badgeGradient.addColorStop(1, index === 0 ? style.accentLine : style.badgeDefaultBottom);
     context.fillStyle = badgeGradient;
-    context.beginPath();
-    context.arc(142, rowCenterY, 20, 0, Math.PI * 2);
+    roundRect(context, panelX + 58, rowTop + 17, 54, 54, 18);
     context.fill();
     context.restore();
 
-    context.fillStyle = '#1a1a1a';
-    context.font = '700 16px "Inter", Arial, sans-serif';
-    context.fillText(String(index + 1), 137, rowCenterY + 6);
+    context.fillStyle = index === 0 ? style.accentText : '#11130f';
+    context.font = '700 20px "Inter", Arial, sans-serif';
+    context.fillText(String(index + 1).padStart(2, '0'), panelX + 70, rowCenterY + 8);
 
-    context.fillStyle = '#1a1a1a';
-    context.font = '700 22px "Inter", Arial, sans-serif';
-    context.fillText(fitText(context, song.title, 690), 184, rowTop + 26);
-    context.fillStyle = 'rgba(26, 26, 26, 0.58)';
-    context.font = '500 19px "Inter", Arial, sans-serif';
-    context.fillText(fitText(context, song.creator, 690), 184, rowTop + 54);
+    const textX = panelX + 136;
+    const maxTitleWidth = 620;
+    context.fillStyle = index === 0 ? style.rowFeaturedText : style.rowDefaultText;
+    context.font = '700 23px "Inter", Arial, sans-serif';
+    const titleLines = wrapTextToMaxLines(context, song.title, maxTitleWidth, 2);
+    titleLines.forEach((line, lineIndex) => {
+      context.fillText(line, textX, rowTop + 31 + lineIndex * 25);
+    });
+
+    const creatorY = titleLines.length > 1 ? rowTop + 74 : rowTop + 62;
+    context.fillStyle = index === 0 ? style.rowFeaturedMuted : style.rowDefaultMuted;
+    context.font = '500 18px "Outfit", Arial, sans-serif';
+    context.fillText(fitText(context, song.creator, maxTitleWidth), textX, creatorY);
+
+    context.fillStyle = index === 0 ? style.equalizerFeatured : style.equalizerDefault;
+    const barX = panelX + panelWidth - 156;
+    [22, 36, 52, 30, 44].forEach((barHeight, barIndex) => {
+      const adjustedHeight = index === 0 ? barHeight : barHeight * 0.72;
+      roundRect(context, barX + barIndex * 18, rowCenterY - adjustedHeight / 2, 8, adjustedHeight, 4);
+      context.fill();
+    });
   });
 
-  context.fillStyle = 'rgba(26, 26, 26, 0.24)';
-  context.fillRect(116, 1346, 848, 1);
+  context.save();
+  context.strokeStyle = style.border;
+  context.lineWidth = 1;
+  for (let index = 0; index < 18; index += 1) {
+    const x = 76 + index * 54;
+    context.beginPath();
+    context.moveTo(x, 1814);
+    context.lineTo(x + 22, 1814);
+    context.stroke();
+  }
+  context.restore();
 
-  context.fillStyle = 'rgba(26, 26, 26, 0.72)';
+  context.fillStyle = style.footerText;
   context.font = '700 20px "Inter", Arial, sans-serif';
-  context.fillText(analysis.sourceLabel.toUpperCase(), 116, 1834);
+  context.fillText(fitText(context, analysis.sourceLabel.toUpperCase(), 540), 76, 1848);
 
-  context.fillStyle = 'rgba(26, 26, 26, 0.42)';
+  context.fillStyle = style.footerMuted;
   context.font = '600 21px "Inter", Arial, sans-serif';
-  context.fillText('Made With MoodTune v1.0', 116, 1868);
+  context.fillText('Made With MoodTune v1.0', 76, 1884);
 
   context.save();
-  context.fillStyle = 'rgba(26, 26, 26, 0.08)';
+  context.fillStyle = style.accent;
   context.beginPath();
-  context.arc(930, 1838, 54, 0, Math.PI * 2);
+  context.arc(930, 1852, 54, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = 'rgba(255,255,255,0.55)';
-  context.beginPath();
-  context.arc(930, 1838, 28, 0, Math.PI * 2);
-  context.fill();
-  context.strokeStyle = 'rgba(26, 26, 26, 0.12)';
+  context.fillStyle = style.accentText;
+  context.font = '700 24px "Inter", Arial, sans-serif';
+  context.fillText('MT', 911, 1860);
+  context.restore();
+
+  context.save();
+  context.strokeStyle = style.border;
   context.lineWidth = 2;
-  context.beginPath();
-  context.arc(930, 1838, 42, 0, Math.PI * 2);
+  roundRect(context, 48, 48, width - 96, height - 96, 36);
   context.stroke();
   context.restore();
 
   context.save();
-  context.strokeStyle = 'rgba(26, 26, 26, 0.08)';
-  context.lineWidth = 2;
-  roundRect(context, 48, 48, width - 96, height - 96, 34);
-  context.stroke();
+  const finalGlare = context.createLinearGradient(0, 0, width, height);
+  finalGlare.addColorStop(0, 'rgba(255,255,255,0.08)');
+  finalGlare.addColorStop(0.22, 'rgba(255,255,255,0.015)');
+  finalGlare.addColorStop(0.38, 'rgba(255,255,255,0)');
+  context.fillStyle = finalGlare;
+  context.beginPath();
+  context.moveTo(0, 0);
+  context.lineTo(520, 0);
+  context.lineTo(210, height);
+  context.lineTo(0, height);
+  context.closePath();
+  context.fill();
   context.restore();
 
   return new Promise<Blob>((resolve, reject) => {
@@ -472,6 +789,23 @@ function wrapText(
   }
 
   return lines;
+}
+
+function wrapTextToMaxLines(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+) {
+  const fittedLines = wrapText(context, text, maxWidth).map((line) => fitText(context, line, maxWidth));
+
+  if (fittedLines.length <= maxLines) {
+    return fittedLines;
+  }
+
+  const visibleLines = fittedLines.slice(0, maxLines);
+  visibleLines[maxLines - 1] = fitText(context, fittedLines.slice(maxLines - 1).join(' '), maxWidth);
+  return visibleLines;
 }
 
 function fitText(
@@ -875,6 +1209,8 @@ export default function App() {
   const [isFaceTrackingActive, setIsFaceTrackingActive] = useState(false);
   const [shareState, setShareState] = useState<'idle' | 'preparing' | 'shared' | 'downloaded' | 'copied' | 'error'>('idle');
   const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [selectedShareStyle, setSelectedShareStyle] = useState<ShareCardStyleId>('neon-recap');
+  const [isShareStylePickerOpen, setIsShareStylePickerOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1249,20 +1585,23 @@ export default function App() {
     }
   }, [analysis]);
 
-  const shareToInstagram = useCallback(async () => {
+  const shareToInstagram = useCallback(async (styleId: ShareCardStyleId = selectedShareStyle) => {
     if (!analysis || !image) {
       return;
     }
 
+    const style = getShareCardStyle(styleId);
+    setSelectedShareStyle(style.id);
+    setIsShareStylePickerOpen(false);
     setShareState('preparing');
-    setShareMessage('Preparing Instagram share card...');
+    setShareMessage(`Preparing ${style.label} story card...`);
 
     try {
       const caption = buildInstagramCaption(analysis);
-      const shareBlob = await buildInstagramShareCard({ imageSource: image, analysis });
-      const shareFile = new File([shareBlob], 'moodtune-instagram-share.png', { type: 'image/png' });
+      const shareBlob = await buildInstagramShareCard({ imageSource: image, analysis, styleId: style.id });
+      const shareFile = new File([shareBlob], `moodtune-${style.id}.png`, { type: 'image/png' });
       const shareData = {
-        title: `MoodTune - ${analysis.mood}`,
+        title: `MoodTune - ${analysis.mood} - ${style.label}`,
         text: caption,
         files: [shareFile],
       };
@@ -1274,7 +1613,7 @@ export default function App() {
         return;
       }
 
-      triggerFileDownload(shareBlob, 'moodtune-instagram-share.png');
+      triggerFileDownload(shareBlob, `moodtune-${style.id}.png`);
       await copyTextToClipboard(caption);
       setShareState('downloaded');
       setShareMessage('Instagram story card downloaded and caption copied. Upload it to Story, then paste the caption.');
@@ -1283,7 +1622,7 @@ export default function App() {
       setShareState('error');
       setShareMessage('Instagram share card could not be prepared.');
     }
-  }, [analysis, image]);
+  }, [analysis, image, selectedShareStyle]);
 
   const openHistoryEntry = (entry: HistoryEntry) => {
     enrichmentRunRef.current += 1;
@@ -1294,6 +1633,7 @@ export default function App() {
     setSaveState('saved');
     setShareState('idle');
     setShareMessage(null);
+    setIsShareStylePickerOpen(false);
     setStage('results');
 
     const runId = enrichmentRunRef.current;
@@ -1315,6 +1655,7 @@ export default function App() {
     setSaveState('idle');
     setShareState('idle');
     setShareMessage(null);
+    setIsShareStylePickerOpen(false);
     enrichmentRunRef.current += 1;
 
     try {
@@ -1496,7 +1837,10 @@ export default function App() {
     setSaveState('idle');
     setShareState('idle');
     setShareMessage(null);
+    setIsShareStylePickerOpen(false);
   };
+
+  const selectedShareStyleConfig = getShareCardStyle(selectedShareStyle);
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-[#FAF9F6] overflow-x-hidden flex flex-col">
@@ -1928,9 +2272,7 @@ export default function App() {
                     <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                       <button
                         type="button"
-                        onClick={() => {
-                          void shareToInstagram();
-                        }}
+                        onClick={() => setIsShareStylePickerOpen(true)}
                         className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.18em] md:tracking-[0.22em] transition-colors ${
                           shareState === 'preparing'
                             ? 'border-black bg-black text-white'
@@ -1938,7 +2280,7 @@ export default function App() {
                         }`}
                       >
                         <Share2 className="w-3.5 h-3.5" />
-                        <span>{shareState === 'preparing' ? 'Preparing...' : 'Share Story Card'}</span>
+                        <span>{shareState === 'preparing' ? 'Preparing...' : `Share: ${selectedShareStyleConfig.label}`}</span>
                       </button>
                       <button
                         type="button"
@@ -1990,6 +2332,169 @@ export default function App() {
                   </div>
                 </div>
               </section>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isShareStylePickerOpen && analysis && image && (
+            <motion.div
+              key="share-style-picker"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-3 md:p-6"
+            >
+              <button
+                type="button"
+                aria-label="Close share style picker"
+                onClick={() => setIsShareStylePickerOpen(false)}
+                className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ y: 26, scale: 0.98 }}
+                animate={{ y: 0, scale: 1 }}
+                exit={{ y: 26, scale: 0.98 }}
+                className="relative w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-[2rem] border border-white/50 bg-[#FAF9F6] p-4 md:p-7 shadow-2xl panel-scrollbar"
+              >
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-black/10 pb-5">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.32em] text-black/40">Instagram Story Export</p>
+                    <h3 className="font-serif text-3xl md:text-4xl leading-none mt-2">Choose card style.</h3>
+                    <p className="mt-3 max-w-2xl text-sm text-black/55">
+                      Pilih salah satu style recap sebelum gambar dibuat dan dibagikan ke Instagram.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsShareStylePickerOpen(false)}
+                    className="self-start md:self-auto rounded-full border border-black/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-black/60 hover:border-black hover:text-black"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 py-6">
+                  {SHARE_CARD_STYLES.map((style) => {
+                    const isActive = selectedShareStyle === style.id;
+
+                    return (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => setSelectedShareStyle(style.id)}
+                        className={`group rounded-[1.6rem] border p-3 text-left transition-all ${
+                          isActive
+                            ? 'border-black bg-white shadow-xl shadow-black/10'
+                            : 'border-black/10 bg-white/60 hover:border-black/30 hover:bg-white'
+                        }`}
+                      >
+                        <div
+                          className="relative aspect-[9/16] overflow-hidden rounded-[1.25rem] border shadow-inner"
+                          style={{
+                            background: `linear-gradient(155deg, ${style.background[0]}, ${style.background[1]} 52%, ${style.background[2]})`,
+                            borderColor: style.border,
+                          }}
+                        >
+                          <div
+                            className="absolute -right-8 top-8 rotate-90 text-4xl font-black tracking-tighter"
+                            style={{ color: style.backgroundPattern }}
+                          >
+                            RECAP
+                          </div>
+                          <div className="absolute left-4 top-4 right-4 flex items-center justify-between">
+                            <span
+                              className="text-[7px] font-bold uppercase tracking-[0.18em]"
+                              style={{ color: style.backgroundText }}
+                            >
+                              MoodTune
+                            </span>
+                            <span
+                              className="rounded-full px-2 py-1 text-[6px] font-black uppercase tracking-[0.12em]"
+                              style={{ backgroundColor: style.accent, color: style.accentText }}
+                            >
+                              Top 5
+                            </span>
+                          </div>
+                          <div className="absolute left-4 right-4 top-14 h-[34%] overflow-hidden rounded-2xl bg-black/20">
+                            <img src={image} alt="" className="h-full w-full object-cover opacity-90" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                          </div>
+                          <div
+                            className="absolute left-3 right-3 bottom-4 rounded-2xl p-3"
+                            style={{ backgroundColor: style.surface, color: style.surfaceText }}
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <span className="text-[7px] font-black uppercase tracking-[0.16em]">
+                                {style.label}
+                              </span>
+                              <span
+                                className="h-5 w-5 rounded-full"
+                                style={{ backgroundColor: style.accent }}
+                              />
+                            </div>
+                            {[0, 1, 2].map((row) => (
+                              <div
+                                key={row}
+                                className="mb-1.5 h-5 rounded-lg"
+                                style={{ backgroundColor: row === 0 ? style.rowFeatured : style.rowDefault }}
+                              >
+                                <div className="flex h-full items-center gap-2 px-2">
+                                  <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: row === 0 ? style.accent : style.surfaceSubtle }}
+                                  />
+                                  <span
+                                    className="h-1.5 flex-1 rounded-full"
+                                    style={{ backgroundColor: row === 0 ? style.rowFeaturedText : style.rowDefaultText, opacity: 0.55 }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="pt-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-bold tracking-tight">{style.label}</h4>
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${
+                                isActive ? 'ring-4 ring-black/10' : ''
+                              }`}
+                              style={{ backgroundColor: style.accent }}
+                            />
+                          </div>
+                          <p className="mt-1 text-[10px] leading-relaxed text-black/45">{style.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-black/10 pt-5">
+                  <div className="rounded-2xl bg-black/5 px-4 py-3 text-xs text-black/60">
+                    Selected: <span className="font-bold text-black">{selectedShareStyleConfig.label}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsShareStylePickerOpen(false)}
+                      className="rounded-full border border-black/10 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-black/60 hover:border-black hover:text-black"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={shareState === 'preparing'}
+                      onClick={() => {
+                        void shareToInstagram(selectedShareStyle);
+                      }}
+                      className="rounded-full bg-black px-5 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {shareState === 'preparing' ? 'Preparing...' : 'Share Selected Style'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

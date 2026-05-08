@@ -111,7 +111,7 @@ Provide the response in JSON format.`;
     return {
       ...parsed,
       source: 'gemini',
-      sourceLabel: 'Gemini vision analysis',
+      sourceLabel: 'MoodTune Analysis',
     };
   } catch (error) {
     console.error('Gemini analysis failed. Falling back to local analysis.', error);
