@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, RefreshCw, ArrowLeft, ExternalLink, Pause, Play, Youtube, BookmarkPlus, History, Sparkles, Frame, SlidersHorizontal, Share2, Copy } from 'lucide-react';
 import { analyzeMood } from './services/geminiService';
@@ -46,7 +46,10 @@ type HistoryEntry = {
 };
 
 const HISTORY_STORAGE_KEY = 'moodtune-history-v1';
-const HISTORY_LIMIT = 5;
+const HISTORY_LIMIT = 24;
+
+type HistorySourceFilter = 'all' | MoodAnalysis['source'];
+type HistoryRatioFilter = 'all' | AspectRatioOption;
 
 type ShareCardStyleConfig = {
   id: ShareCardStyleId;
@@ -1211,6 +1214,9 @@ export default function App() {
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [selectedShareStyle, setSelectedShareStyle] = useState<ShareCardStyleId>('neon-recap');
   const [isShareStylePickerOpen, setIsShareStylePickerOpen] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [historySourceFilter, setHistorySourceFilter] = useState<HistorySourceFilter>('all');
+  const [historyRatioFilter, setHistoryRatioFilter] = useState<HistoryRatioFilter>('all');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1219,6 +1225,7 @@ export default function App() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const audioElementsRef = useRef<Record<string, HTMLAudioElement | null>>({});
   const enrichmentRunRef = useRef(0);
+  const deferredHistorySearchQuery = useDeferredValue(historySearchQuery);
 
   const stopCameraStream = useCallback(() => {
     setIsCameraStarting(false);
@@ -1548,6 +1555,11 @@ export default function App() {
     }
   };
 
+  const writeHistoryEntries = useCallback((entries: HistoryEntry[]) => {
+    setHistoryEntries(entries);
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries));
+  }, []);
+
   const saveCurrentResultToHistory = useCallback(() => {
     if (!analysis || !image) {
       return;
@@ -1561,13 +1573,27 @@ export default function App() {
       aspectRatio: selectedAspectRatio,
     };
 
-    setHistoryEntries((current) => {
-      const next = [entry, ...current.filter((item) => item.image !== image)].slice(0, HISTORY_LIMIT);
-      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    const next = [entry, ...historyEntries.filter((item) => item.image !== image)].slice(0, HISTORY_LIMIT);
+    writeHistoryEntries(next);
     setSaveState('saved');
-  }, [analysis, image, selectedAspectRatio]);
+  }, [analysis, historyEntries, image, selectedAspectRatio, writeHistoryEntries]);
+
+  const removeHistoryEntry = useCallback((entryId: string) => {
+    const next = historyEntries.filter((entry) => entry.id !== entryId);
+    writeHistoryEntries(next);
+  }, [historyEntries, writeHistoryEntries]);
+
+  const clearHistoryEntries = useCallback(() => {
+    if (historyEntries.length === 0) {
+      return;
+    }
+
+    if (!window.confirm('Delete all saved Gallery items from this browser?')) {
+      return;
+    }
+
+    writeHistoryEntries([]);
+  }, [historyEntries.length, writeHistoryEntries]);
 
   const copyInstagramCaption = useCallback(async () => {
     if (!analysis) {
@@ -1849,6 +1875,39 @@ export default function App() {
   };
 
   const selectedShareStyleConfig = getShareCardStyle(selectedShareStyle);
+  const normalizedHistorySearchQuery = deferredHistorySearchQuery.trim().toLowerCase();
+  const filteredHistoryEntries = historyEntries.filter((entry) => {
+    const matchesSource =
+      historySourceFilter === 'all' || entry.analysis.source === historySourceFilter;
+    const matchesRatio =
+      historyRatioFilter === 'all' || entry.aspectRatio === historyRatioFilter;
+
+    if (!matchesSource || !matchesRatio) {
+      return false;
+    }
+
+    if (!normalizedHistorySearchQuery) {
+      return true;
+    }
+
+    const searchableText = [
+      entry.analysis.mood,
+      entry.analysis.vibe,
+      entry.analysis.sourceLabel,
+      entry.analysis.colors.join(' '),
+      new Date(entry.createdAt).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    ].join(' ').toLowerCase();
+
+    return searchableText.includes(normalizedHistorySearchQuery);
+  });
+  const hasActiveHistoryFilters =
+    historySearchQuery.trim().length > 0 ||
+    historySourceFilter !== 'all' ||
+    historyRatioFilter !== 'all';
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-[#FAF9F6] overflow-x-hidden flex flex-col">
@@ -2005,6 +2064,95 @@ export default function App() {
                   </button>
                 </header>
 
+                {historyEntries.length > 0 && (
+                  <section className="rounded-[2rem] border border-[#1A1A1A]/10 bg-[#FAF9F6] p-5 md:p-6">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex-1">
+                          <label htmlFor="gallery-search" className="mb-2 block text-[9px] font-bold uppercase tracking-[0.24em] text-black/35">
+                            Search Gallery
+                          </label>
+                          <input
+                            id="gallery-search"
+                            type="text"
+                            value={historySearchQuery}
+                            onChange={(event) => setHistorySearchQuery(event.target.value)}
+                            placeholder="Search mood, vibe, color, or date"
+                            className="w-full rounded-2xl border border-[#1A1A1A]/10 bg-white px-4 py-3 text-sm text-black outline-none transition-colors placeholder:text-black/30 focus:border-black"
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                          <button
+                            type="button"
+                            onClick={clearHistoryEntries}
+                            className="rounded-full border border-red-500/15 bg-red-500/5 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-red-700 transition-colors hover:border-red-500/30 hover:bg-red-500/10"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {([
+                            ['all', 'All Sources'],
+                            ['gemini', 'Gemini'],
+                            ['local', 'Local'],
+                          ] as [HistorySourceFilter, string][]).map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setHistorySourceFilter(value)}
+                              className={`rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.18em] transition-colors ${
+                                historySourceFilter === value
+                                  ? 'bg-black text-white'
+                                  : 'border border-[#1A1A1A]/10 bg-white text-[#1A1A1A]/65 hover:border-black hover:text-black'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                          {([
+                            ['all', 'All Ratios'],
+                            ['3:4', '3:4'],
+                            ['16:9', '16:9'],
+                          ] as [HistoryRatioFilter, string][]).map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setHistoryRatioFilter(value)}
+                              className={`rounded-full px-3 py-2 text-[9px] font-bold uppercase tracking-[0.18em] transition-colors ${
+                                historyRatioFilter === value
+                                  ? 'bg-black text-white'
+                                  : 'border border-[#1A1A1A]/10 bg-white text-[#1A1A1A]/65 hover:border-black hover:text-black'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-black/35">
+                          <span>{filteredHistoryEntries.length} of {historyEntries.length} items</span>
+                          {hasActiveHistoryFilters && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setHistorySearchQuery('');
+                                setHistorySourceFilter('all');
+                                setHistoryRatioFilter('all');
+                              }}
+                              className="rounded-full border border-[#1A1A1A]/10 bg-white px-3 py-2 text-[9px] text-[#1A1A1A]/65 transition-colors hover:border-black hover:text-black"
+                            >
+                              Reset Filters
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
                 {historyEntries.length === 0 ? (
                   <section className="flex min-h-[24rem] flex-col items-center justify-center rounded-[2rem] border border-dashed border-[#1A1A1A]/15 bg-[#FAF9F6] p-8 text-center">
                     <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-black/5">
@@ -2022,16 +2170,41 @@ export default function App() {
                       Start Capture
                     </button>
                   </section>
+                ) : filteredHistoryEntries.length === 0 ? (
+                  <section className="flex min-h-[20rem] flex-col items-center justify-center rounded-[2rem] border border-dashed border-[#1A1A1A]/15 bg-[#FAF9F6] p-8 text-center">
+                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-black/5">
+                      <History className="h-6 w-6 text-black/55" />
+                    </div>
+                    <h2 className="font-serif text-3xl leading-none">Tidak ada hasil yang cocok.</h2>
+                    <p className="mt-3 max-w-md text-sm leading-relaxed text-gray-500">
+                      Ubah keyword pencarian atau reset filter untuk melihat semua item yang tersimpan.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHistorySearchQuery('');
+                        setHistorySourceFilter('all');
+                        setHistoryRatioFilter('all');
+                      }}
+                      className="mt-6 rounded-full border border-black/10 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-black/65 hover:border-black hover:text-black"
+                    >
+                      Reset Filters
+                    </button>
+                  </section>
                 ) : (
                   <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {historyEntries.map((entry) => (
-                      <button
+                    {filteredHistoryEntries.map((entry) => (
+                      <article
                         key={entry.id}
-                        type="button"
-                        onClick={() => openHistoryEntry(entry)}
                         className="group overflow-hidden rounded-[2rem] border border-[#1A1A1A]/10 bg-[#FAF9F6] text-left shadow-sm transition-all hover:-translate-y-1 hover:border-black/20 hover:shadow-xl"
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-black/5">
+                          <button
+                            type="button"
+                            onClick={() => openHistoryEntry(entry)}
+                            className="absolute inset-0 z-10"
+                            aria-label={`Open ${entry.analysis.mood} result`}
+                          />
                           <img
                             src={entry.image}
                             alt={`${entry.analysis.mood} gallery item`}
@@ -2042,9 +2215,18 @@ export default function App() {
                             <span className="rounded-full bg-white/80 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-black/65 backdrop-blur-md">
                               {entry.analysis.sourceLabel}
                             </span>
-                            <span className="rounded-full bg-black/35 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white/80 backdrop-blur-md">
-                              {entry.aspectRatio}
-                            </span>
+                            <div className="relative z-20 flex items-center gap-2">
+                              <span className="rounded-full bg-black/35 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white/80 backdrop-blur-md">
+                                {entry.aspectRatio}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeHistoryEntry(entry.id)}
+                                className="rounded-full bg-black/45 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white/85 backdrop-blur-md transition-colors hover:bg-red-600"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                           <div className="absolute bottom-4 left-4 right-4 text-white">
                             <h3 className="font-serif text-3xl leading-none tracking-tight">
@@ -2078,8 +2260,15 @@ export default function App() {
                               </span>
                             ))}
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => openHistoryEntry(entry)}
+                            className="w-full rounded-full border border-[#1A1A1A]/10 bg-white px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#1A1A1A]/65 transition-colors hover:border-black hover:text-black"
+                          >
+                            Open Result
+                          </button>
                         </div>
-                      </button>
+                      </article>
                     ))}
                   </section>
                 )}
